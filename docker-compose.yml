@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   db:
     # 採用支援 pgvector 的 PostgreSQL 映像檔，以便未來處理 OLLAMA_EMBEDDING_API 的圖例向量比對
