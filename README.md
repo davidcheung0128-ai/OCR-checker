@@ -1,0 +1,347 @@
+# FSEE AI HVAC Duct Pressure Drop Calculator
+
+AI-powered web app for analyzing HVAC engineering drawings (PDF) and calculating duct pressure drop using Young's Engineering Company standards. Upload a duct layout PDF, review AI-detected duct sections and fittings, adjust values, and export an Excel calculation report.
+
+## Features
+
+- **PDF drawing upload** — sends drawings to MinerU for visual parsing
+- **AI-assisted duct detection** — identifies duct runs, fittings, and dimensions (VLLM integration planned)
+- **Pressure drop calculation** — Darcy/Colebrook friction and ASHRAE fitting coefficients
+- **Excel export** — generates Young's Engineering standard ESP calculation sheets
+- **User feedback loop** — stores manual corrections in PostgreSQL for future model training
+
+---
+
+## Requirements
+
+You only need **one** of the two setups below.
+
+### Option A — Docker (recommended for all devices)
+
+| Requirement | Minimum version |
+|---|---|
+| [Docker Desktop](https://www.docker.com/products/docker-desktop/) (Windows / macOS) or [Docker Engine](https://docs.docker.com/engine/install/) (Linux) | 20.10+ |
+| [Docker Compose](https://docs.docker.com/compose/install/) | v2.0+ (included in Docker Desktop) |
+
+Works on **Windows 10/11**, **macOS (Intel & Apple Silicon)**, and **Linux**.
+
+### Option B — Local development (without Docker)
+
+| Tool | Version |
+|---|---|
+| Python | 3.10+ |
+| Node.js | 18+ |
+| npm | 9+ |
+| PostgreSQL | 14+ (optional — backend falls back to SQLite if not configured) |
+
+---
+
+## Quick Start (Docker)
+
+This is the fastest way to run the app on any machine.
+
+### 1. Clone the repository
+
+```bash
+git clone https://github.com/davidcheung0128-ai/OCR-checker.git
+cd OCR-checker
+```
+
+### 2. Start all services
+
+```bash
+docker compose up --build
+```
+
+First run downloads images and installs dependencies — this may take a few minutes.
+
+### 3. Open the app
+
+| Service | URL |
+|---|---|
+| **Frontend (main UI)** | http://localhost:3000 |
+| **Backend API docs** | http://localhost:8000/docs |
+| **Backend health check** | http://localhost:8000 |
+
+### 4. Stop the app
+
+Press `Ctrl+C` in the terminal, then:
+
+```bash
+docker compose down
+```
+
+To also remove the database volume:
+
+```bash
+docker compose down -v
+```
+
+---
+
+## Local Development Setup (without Docker)
+
+Use this if you prefer running services directly on your machine.
+
+### Backend
+
+```bash
+cd backend
+
+# Create and activate a virtual environment
+python -m venv .venv
+
+# Windows
+.venv\Scripts\activate
+
+# macOS / Linux
+source .venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Start the API server
+uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+```
+
+The backend runs at http://localhost:8000.
+
+### Frontend
+
+Open a **second terminal**:
+
+```bash
+cd frontend
+
+# Install dependencies
+npm install
+
+# Start the dev server
+npm run dev
+```
+
+The frontend runs at http://localhost:3000.
+
+### Optional: configure the API URL
+
+If the backend is on a different host or port, create `frontend/.env.local`:
+
+```env
+VITE_API_URL=http://localhost:8000
+```
+
+Restart the frontend after changing this file.
+
+---
+
+## Accessing from Other Devices on Your Network
+
+The frontend and backend bind to `0.0.0.0`, so other devices on the same Wi-Fi/LAN can reach the app.
+
+1. Find your machine's local IP address:
+   - **Windows:** `ipconfig` → look for `IPv4 Address`
+   - **macOS / Linux:** `ip addr` or `ifconfig` → look for `inet 192.168.x.x`
+
+2. On another device (phone, tablet, another PC), open:
+   ```
+   http://<your-ip-address>:3000
+   ```
+
+3. If using Docker and the frontend cannot reach the backend from a remote device, set the API URL to your machine's IP in `docker-compose.yml`:
+   ```yaml
+   environment:
+     - VITE_API_URL=http://<your-ip-address>:8000
+   ```
+   Then restart: `docker compose up -d --build frontend`
+
+---
+
+## How to Use the App
+
+### Step 1 — Upload a PDF drawing
+
+1. Open http://localhost:3000
+2. In **"1. 上傳工程圖紙 (PDF)"**, click the upload area or drag and drop a **PDF** HVAC duct layout
+3. The file is sent to the backend, which calls MinerU for visual parsing
+4. Wait for the status message to change to **"解析成功"** (analysis complete)
+
+> **Note:** Only PDF files are accepted by the backend. PNG upload is shown in the UI but not yet supported server-side.
+
+### Step 2 — Configure system settings
+
+In **"2. 系統與比例尺設定"**:
+
+| Field | Description | Default |
+|---|---|---|
+| **設計總風量 (m³/s)** | Total design air flow rate for the system | `0.25` |
+| **比例尺校準 (mm/px)** | Scale ratio for converting drawing pixels to real-world mm | `1.0` |
+
+Adjust these to match your project's design conditions before exporting.
+
+### Step 3 — Review and edit duct sections
+
+In **"3. 風管管路組件與壓降試算明細"**, the table shows detected duct components:
+
+| Column | Description |
+|---|---|
+| **#** | Section ID |
+| **類型** | Suction or Discharge |
+| **配件/管段名稱** | Fitting or duct run name (editable) |
+| **寬 a(mm)** | Duct width in mm (editable) |
+| **高 b(mm)** | Duct height in mm (editable) |
+| **長度 L(m)** | Duct length in metres (editable) |
+| **ASHRAE 代碼** | Fitting code (e.g. `CR9-4`, `SR4-1`) |
+
+Click any editable cell to correct AI-detected values before exporting.
+
+### Step 4 — Export Excel report
+
+1. Click **"下載 Young's Standard Excel"** at the bottom right
+2. The app calculates Darcy/Colebrook friction losses and generates a Young's Engineering ESP calculation sheet
+3. The Excel file downloads to your browser's default download folder
+
+### Step 5 — Submit corrections (optional)
+
+If the AI misidentifies a fitting, corrections can be submitted via the API for future model training:
+
+```bash
+curl -X POST "http://localhost:8000/api/feedback" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "filename": "drawing.pdf",
+    "original": "Elbow",
+    "corrected": "T-Junction",
+    "bbox": {"x": 10, "y": 20, "w": 100, "h": 50}
+  }'
+```
+
+---
+
+## Environment Variables
+
+### Backend (`docker-compose.yml` or shell environment)
+
+| Variable | Default | Description |
+|---|---|---|
+| `DATABASE_URL` | `sqlite:///./local_fallback.db` | PostgreSQL connection string |
+| `VLLM_API_URL` | `https://ai.fse.com.hk/vllm/v1` | VLLM API endpoint |
+| `VLLM_MODEL` | `Qwen/Qwen3.6-27B-FP8` | LLM model name |
+| `MINERU_API_URL` | `https://ai.fse.com.hk/mineru/file_parse` | MinerU PDF parsing endpoint |
+| `OLLAMA_EMBEDDING_API` | `https://ai.fse.com.hk/api2` | Embedding API for legend matching |
+| `OLLAMA_EMBEDDING_MODEL` | `bge-m3` | Embedding model name |
+
+### Frontend
+
+| Variable | Default | Description |
+|---|---|---|
+| `VITE_API_URL` | `http://localhost:8000` | Backend API base URL |
+
+> **Important:** Vite uses `VITE_` prefixed variables (not `REACT_APP_`). Set these before starting the frontend.
+
+---
+
+## Project Structure
+
+```
+OCR-checker/
+├── backend/
+│   ├── main.py              # FastAPI app — upload, feedback, health check
+│   ├── physics_engine.py    # Darcy/Colebrook pressure drop calculations
+│   ├── excel_exporter.py    # Young's Engineering Excel generator
+│   ├── requirements.txt
+│   └── Dockerfile
+├── frontend/
+│   ├── src/
+│   │   ├── main.jsx         # React entry point
+│   │   └── components/      # UI components (App, Header, Upload, Settings, Table)
+│   ├── index.html
+│   ├── vite.config.js
+│   ├── tailwind.config.js
+│   ├── postcss.config.js
+│   └── Dockerfile
+├── docker-compose.yml       # Orchestrates db + backend + frontend
+└── README.md
+```
+
+---
+
+## Troubleshooting
+
+### Blank white screen at http://localhost:3000
+
+**Cause:** The frontend crashed on load due to an environment variable error.
+
+**Fix:** Make sure you are on the latest code. The app uses `import.meta.env.VITE_API_URL` (Vite syntax), not `process.env.REACT_APP_API_URL`.
+
+Open the browser DevTools console (`F12` → Console). If you see `ReferenceError: process is not defined`, pull the latest changes and restart the frontend.
+
+### Port already in use
+
+```bash
+# Find what is using port 3000 or 8000
+# Windows
+netstat -ano | findstr :3000
+
+# macOS / Linux
+lsof -i :3000
+```
+
+Change the port in `docker-compose.yml` or stop the conflicting process.
+
+### Frontend cannot connect to backend
+
+- Confirm the backend is running: visit http://localhost:8000 — you should see `{"status":"ok",...}`
+- Check `VITE_API_URL` points to the correct backend address
+- After changing env vars in Docker, rebuild: `docker compose up -d --build frontend`
+
+### `Cannot find module @rollup/rollup-*` (npm error)
+
+Reinstall frontend dependencies:
+
+```bash
+cd frontend
+rm -rf node_modules package-lock.json
+npm install
+```
+
+### PDF upload fails
+
+- Ensure the file is a valid `.pdf`
+- The MinerU API must be reachable from your backend (requires network access to `ai.fse.com.hk` or your configured endpoint)
+- Check backend logs: `docker compose logs backend`
+
+### Docker containers won't start on Apple Silicon (M1/M2/M3)
+
+Docker Desktop handles architecture translation automatically. If a specific image fails, add `platform: linux/amd64` under the service in `docker-compose.yml`.
+
+---
+
+## API Reference
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/` | Health check |
+| `POST` | `/api/upload` | Upload PDF for MinerU analysis |
+| `POST` | `/api/feedback` | Submit manual correction feedback |
+
+Interactive docs: http://localhost:8000/docs
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Frontend | React 18, Vite 5, Tailwind CSS, Axios, Lucide Icons |
+| Backend | FastAPI, Uvicorn, SQLAlchemy, httpx |
+| Database | PostgreSQL (pgvector) with SQLite fallback |
+| AI Services | MinerU (PDF parsing), VLLM/Qwen (structuring), Ollama/bge-m3 (embeddings) |
+| Physics | NumPy, SciPy (Colebrook solver), NetworkX |
+| Export | pandas, openpyxl |
+| Infrastructure | Docker Compose |
+
+---
+
+## License
+
+Internal use — Young's Engineering Company / FSEE.
