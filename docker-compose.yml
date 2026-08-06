@@ -1,0 +1,62 @@
+version: '3.8'
+
+services:
+  db:
+    # 採用支援 pgvector 的 PostgreSQL 映像檔，以便未來處理 OLLAMA_EMBEDDING_API 的圖例向量比對
+    image: ankane/pgvector:latest
+    container_name: fsee_db
+    restart: always
+    environment:
+      POSTGRES_USER: fsee_user
+      POSTGRES_PASSWORD: fsee_password
+      POSTGRES_DB: fsee_hvac_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - fsee_db_data:/var/lib/postgresql/data
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: fsee_backend
+    restart: always
+    ports:
+      - "8000:8000"
+    environment:
+      # 資料庫連線字串
+      - DATABASE_URL=postgresql://fsee_user:fsee_password@db:5432/fsee_hvac_db
+      
+      # FSEE 企業私有 AI 工具鏈配置
+      - VLLM_API_URL=https://ai.fse.com.hk/vllm/v1
+      - VLLM_MODEL=Qwen/Qwen3.6-27B-FP8
+      - MINERU_API_URL=https://ai.fse.com.hk/mineru/file_parse
+      - OLLAMA_EMBEDDING_API=https://ai.fse.com.hk/api2
+      - OLLAMA_EMBEDDING_MODEL=bge-m3
+    depends_on:
+      - db
+    volumes:
+      # 將本機的 backend 資料夾掛載到容器內，支援開發時的熱重載 (Hot Reload)
+      - ./backend:/app
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: fsee_frontend
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      # 指向後端 API 的位置
+      - REACT_APP_API_URL=http://localhost:8000
+    depends_on:
+      - backend
+    volumes:
+      # 將本機的 frontend 資料夾掛載，支援熱重載
+      - ./frontend:/app
+      - /app/node_modules
+
+volumes:
+  # 讓 PostgreSQL 資料持久化，不會因為重啟 Docker 而消失
+  fsee_db_data:
