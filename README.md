@@ -40,11 +40,20 @@ Works on **Windows 10/11**, **macOS (Intel & Apple Silicon)**, and **Linux**.
 
 This is the fastest way to run the app on any machine.
 
-### 1. Clone the repository
+### 1. Get the latest code
+
+**New install:**
 
 ```bash
 git clone https://github.com/davidcheung0128-ai/OCR-checker.git
 cd OCR-checker
+```
+
+**Already cloned?** Pull the latest fix (required if you see a blank white screen):
+
+```bash
+cd OCR-checker
+git pull origin main
 ```
 
 ### 2. Start all services
