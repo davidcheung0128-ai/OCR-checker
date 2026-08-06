@@ -16,7 +16,7 @@ RUN apt-get update && apt-get install -y \
 
 # 複製 requirements.txt 並安裝 Python 依賴
 COPY requirements.txt .
-RUN pip install --no-cache-dir -upgrade pip && \
+RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
 # 將後端原始碼複製到容器內
