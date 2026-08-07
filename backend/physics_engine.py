@@ -10,10 +10,11 @@ DEFAULT_ROUGHNESS = 0.15  # ε (mm) 預設粗糙度
 # --- 內建 ASHRAE 局部阻力係數 (K/C-factor) 字典庫 ---
 # 未來可將此字典移至 PostgreSQL 資料庫作動態擴充
 ASHRAE_FITTINGS = {
-    "CR9-4": 0.18,  # Damper (範例值)
-    "SR4-1": 0.89,  # Transition (範例值, 可依據 A0/A1 比例動態擴充)
-    "SILENCER_DEFAULT": 2.40,  # 預設消音箱阻力
-    "FLEX_DEFAULT": 2.40       # 預設軟管阻力
+    "CR9-4": 0.18,  # Damper
+    "SR4-1": 0.89,  # Transition
+    "SILENCER_DEFAULT": 0.0,  # Use fixed Pa loss in exporter / frontend
+    "FLEX_DEFAULT": 0.0,
+    "GRILLE": 15.0,
 }
 
 def calculate_velocity_pressure(velocity: float) -> float:

@@ -13,6 +13,12 @@ from datetime import datetime
 from excel_exporter import generate_pressure_drop_excel
 from physics_engine import calculate_duct_section
 from csv_exporter import generate_calculate_csv, calculate_filename, parse_pdf_filename
+from training_seed import (
+    seed_training_data,
+    get_default_sections,
+    SYMBOL_LEGEND,
+    SEED_SOURCE_FILENAME,
+)
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./local_fallback.db")
 VLLM_API_URL = os.getenv("VLLM_API_URL", "https://ai.fse.com.hk/vllm/v1")
@@ -54,6 +60,18 @@ def _ensure_feedback_columns():
 
 
 _ensure_feedback_columns()
+
+
+def _seed_on_startup():
+    db = SessionLocal()
+    try:
+        result = seed_training_data(db, UserFeedback, force=False)
+        print(f"[training_seed] {result}")
+    finally:
+        db.close()
+
+
+_seed_on_startup()
 
 
 class BboxModel(BaseModel):
@@ -138,7 +156,13 @@ def bbox_iou(a: dict, b: dict) -> float:
 
 def apply_learned_labels(sections: list, db: Session) -> list:
     """Apply saved manual labels when bbox overlaps with training data."""
-    feedback_rows = db.query(UserFeedback).order_by(UserFeedback.created_at.desc()).all()
+    feedback_rows = (
+        db.query(UserFeedback)
+        .filter(UserFeedback.filename != "__symbol_legend__")
+        .filter(UserFeedback.corrected_label != "[DELETED]")
+        .order_by(UserFeedback.created_at.desc())
+        .all()
+    )
     if not feedback_rows:
         return sections
 
@@ -146,7 +170,7 @@ def apply_learned_labels(sections: list, db: Session) -> list:
     for row in feedback_rows:
         if not row.bounding_box:
             continue
-        if row.corrected_label == "[DELETED]":
+        if isinstance(row.bounding_box, dict) and row.bounding_box.get("legend"):
             continue
         learned.append({
             "corrected_label": row.corrected_label,
@@ -184,40 +208,69 @@ def apply_learned_labels(sections: list, db: Session) -> list:
 
 
 @app.get("/")
-def health_check():
-    return {"status": "ok", "message": "FSEE HVAC AI Backend is running."}
+def health_check(db: Session = Depends(get_db)):
+    label_count = (
+        db.query(UserFeedback)
+        .filter(UserFeedback.filename != "__symbol_legend__")
+        .count()
+    )
+    return {
+        "status": "ok",
+        "message": "FSE HVAC AI Backend is running.",
+        "training_labels": label_count,
+        "seed_source": SEED_SOURCE_FILENAME,
+    }
 
 
-@app.get("/api/training/labels")
-def get_training_labels(db: Session = Depends(get_db)):
-    rows = (
-        db.query(
-            UserFeedback.corrected_label,
-            UserFeedback.section_type,
-            UserFeedback.fitting_code,
-            UserFeedback.bounding_box,
-            func.count(UserFeedback.id).label("count"),
-        )
-        .group_by(
-            UserFeedback.corrected_label,
-            UserFeedback.section_type,
-            UserFeedback.fitting_code,
-            UserFeedback.bounding_box,
-        )
-        .order_by(func.count(UserFeedback.id).desc())
+@app.get("/api/training/status")
+def training_status(db: Session = Depends(get_db)):
+    components = (
+        db.query(UserFeedback)
+        .filter(UserFeedback.filename == SEED_SOURCE_FILENAME)
+        .order_by(UserFeedback.id.asc())
         .all()
     )
+    legend = (
+        db.query(UserFeedback)
+        .filter(UserFeedback.filename == "__symbol_legend__")
+        .all()
+    )
+    return {
+        "seed_source": SEED_SOURCE_FILENAME,
+        "component_count": len(components),
+        "legend_count": len(legend),
+        "components": [
+            {
+                "id": i + 1,
+                "label": r.corrected_label,
+                "type": r.section_type,
+                "fitting_code": r.fitting_code,
+                "bbox": r.bounding_box,
+            }
+            for i, r in enumerate(components)
+        ],
+        "legend": [
+            {
+                "name": r.corrected_label,
+                "looks_like": r.original_ai_label,
+                "fitting_code": r.fitting_code,
+                "type": r.section_type,
+                "aliases": (r.bounding_box or {}).get("aliases", []),
+            }
+            for r in legend
+        ],
+    }
 
-    return [
-        {
-            "corrected_label": r.corrected_label,
-            "section_type": r.section_type or "Suction",
-            "fitting_code": r.fitting_code or "",
-            "bbox": r.bounding_box,
-            "count": r.count,
-        }
-        for r in rows
-    ]
+
+@app.post("/api/training/reseed")
+def reseed_training(db: Session = Depends(get_db)):
+    result = seed_training_data(db, UserFeedback, force=True)
+    return {"status": "success", **result}
+
+
+@app.get("/api/training/legend")
+def get_legend():
+    return {"legend": SYMBOL_LEGEND, "source": SEED_SOURCE_FILENAME}
 
 
 @app.post("/api/feedback")
@@ -246,6 +299,8 @@ async def upload_and_analyze_pdf(file: UploadFile = File(...), db: Session = Dep
         raise HTTPException(status_code=400, detail="Only PDF files are supported.")
 
     file_bytes = await file.read()
+    md_content = ""
+    mineru_ok = False
 
     try:
         async with httpx.AsyncClient() as client:
@@ -254,34 +309,31 @@ async def upload_and_analyze_pdf(file: UploadFile = File(...), db: Session = Dep
             response.raise_for_status()
             mineru_data = response.json()
 
-            md_content = ""
             if "results" in mineru_data:
                 keys = list(mineru_data["results"].keys())
                 if keys:
                     md_content = mineru_data["results"][keys[0]].get("md_content", "")
-
+            mineru_ok = True
             if not md_content:
                 md_content = "MinerU parsed the file but returned no md_content."
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"MinerU parsing failed: {str(e)}")
+        # Fall back to seeded EAF-B1-02 training so local demo / training still works
+        md_content = f"MinerU unavailable ({e}); using seeded EAF-B1-02 training labels."
+        print(f"⚠️ MinerU failed, using training seed: {e}")
 
-    mock_sections = [
-        {"id": 1, "type": "Suction", "fitting_name": "Air Grille", "a_mm": 600, "b_mm": 600, "length_m": 0.0, "fitting_code": "GRILLE", "bbox": {"x": 8, "y": 12, "w": 12, "h": 10}},
-        {"id": 2, "type": "Suction", "fitting_name": "Damper", "a_mm": 600, "b_mm": 600, "length_m": 0.18, "fitting_code": "CR9-4", "bbox": {"x": 24, "y": 14, "w": 10, "h": 8}},
-        {"id": 3, "type": "Suction", "fitting_name": "Run", "a_mm": 500, "b_mm": 250, "length_m": 1.4, "fitting_code": "", "bbox": {"x": 38, "y": 22, "w": 28, "h": 6}},
-        {"id": 4, "type": "Suction", "fitting_name": "Silencer", "a_mm": 500, "b_mm": 250, "length_m": 0.0, "fitting_code": "SILENCER_DEFAULT", "bbox": {"x": 68, "y": 20, "w": 10, "h": 10}},
-        {"id": 5, "type": "Discharge", "fitting_name": "Transition", "a_mm": 500, "b_mm": 400, "length_m": 0.89, "fitting_code": "SR4-1", "bbox": {"x": 52, "y": 38, "w": 14, "h": 12}},
-    ]
-
-    sections_with_learning = apply_learned_labels(mock_sections, db)
+    # Start from basic-trained 11-section layout (Young's Excel 1–11)
+    base_sections = get_default_sections()
+    sections_with_learning = apply_learned_labels(base_sections, db)
     learned_count = sum(1 for s in sections_with_learning if s.get("learned_from_training"))
 
     return {
         "status": "success",
         "filename": file.filename,
+        "mineru_ok": mineru_ok,
         "mineru_md_content": md_content,
         "sections": sections_with_learning,
         "learned_labels_applied": learned_count,
+        "training_seed": SEED_SOURCE_FILENAME,
     }
 
 

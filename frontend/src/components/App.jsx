@@ -95,11 +95,16 @@ export default function App() {
       setSelectedSectionId(sections[0]?.id ?? null);
       setLearnedCount(data.learned_labels_applied || 0);
 
+      const seedNote = data.training_seed
+        ? ` Using basic training from ${data.training_seed} (${sections.length} components).`
+        : '';
       const learnedMsg =
         data.learned_labels_applied > 0
-          ? ` ${data.learned_labels_applied} matched from training.`
+          ? ` ${data.learned_labels_applied} matched from saved labels.`
           : '';
-      setStatusMessage(`Analysis complete — go to Step 2 to review labels.${learnedMsg}`);
+      const mineruNote = data.mineru_ok === false ? ' (MinerU offline — seed labels used.)' : '';
+      setStatusMessage(`Analysis complete — go to Step 2 to review labels.${seedNote}${learnedMsg}${mineruNote}`);
+      if (sections.length > 0) setActiveStep(2);
     } catch (err) {
       console.error(err);
       setStatusMessage(`Analysis failed: ${err.response?.data?.detail || err.message}`);

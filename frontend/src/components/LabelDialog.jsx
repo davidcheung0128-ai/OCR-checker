@@ -6,9 +6,10 @@ const FITTING_PRESETS = [
   { name: 'Damper', code: 'CR9-4', type: 'Suction' },
   { name: 'Run', code: '', type: 'Suction' },
   { name: 'Silencer', code: 'SILENCER_DEFAULT', type: 'Suction' },
+  { name: 'Flexible connector', code: 'FLEX_DEFAULT', type: 'Suction' },
   { name: 'Transition', code: 'SR4-1', type: 'Discharge' },
-  { name: 'Elbow', code: 'ELBOW', type: 'Suction' },
-  { name: 'T-Junction', code: 'TEE', type: 'Suction' },
+  { name: 'Fire Damper', code: '', type: 'Discharge' },
+  { name: 'Louvre', code: '', type: 'Discharge' },
 ];
 
 export default function LabelDialog({
