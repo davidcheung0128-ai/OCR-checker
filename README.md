@@ -347,45 +347,27 @@ The frontend and backend bind to `0.0.0.0`, so other devices on the same Wi-Fi/L
 
 > **Note:** Only PDF files are accepted by the backend. PNG upload is shown in the UI but not yet supported server-side.
 
-### Step 2 — Configure system settings
+### Step 2 — Label, review, and correct components
 
-In **"2. 系統與比例尺設定"**:
+Flow rate and scale settings appear in the compact bar at the top of this step.
 
-| Field | Description | Default |
-|---|---|---|
-| **設計總風量 (m³/s)** | Total design air flow rate for the system | `0.25` |
-| **比例尺校準 (mm/px)** | Scale ratio for converting drawing pixels to real-world mm | `1.0` |
-
-Adjust these to match your project's design conditions before exporting.
-
-### Step 3 — Review, manually label, and correct components
-
-The AI bounding boxes may not align correctly. Use manual labeling to fix them:
-
-1. Select a row in the **Duct Section Details** table
-2. Click **Re-box #N** (or toggle **Draw Box** for a new component)
-3. **Delete** removes a wrong AI label box entirely (saved as incorrect detection for training)
-4. Drag a rectangle on the drawing preview around the correct component
-5. Fill in the label dialog (name, type, dimensions, ASHRAE code)
-6. Click **Save & Train** — this stores the correction in the database for future recognition
+1. Select a row in **Duct Section Details**
+2. Click **Re-box #N** or toggle **Draw** on the drawing
+3. **Delete** removes wrong label boxes (saved for training)
+4. Drag a box on the drawing, fill the label dialog, click **Save & Train**
 
 | Indicator | Meaning |
 |---|---|
-| **Green box** | Manually verified label |
-| **★** | Matched automatically from saved training data |
-| **✓** | Manually labeled this session |
+| **Green box** | Manually verified |
+| **★** | Matched from saved training |
+| **✓** | Manually labeled |
 
-On the next upload, similar components (overlapping bounding boxes) will use your saved labels automatically.
+### Step 3 — Preview, edit, and export Calculate sheet
 
-### Step 4 — Preview, edit, and export Calculate sheet
-
-1. Open **Step 4 — 標準 Excel** in the left sidebar
-2. The preview shows the Young's `Calculate(B1F)(EAF-B1-02)` format (filename derived from your PDF, e.g. `02_EAF-B1-02@B1F.pdf` → `Calculate(B1F)(EAF-B1-02)-2.csv`)
-3. **Amber cells** are editable (location, ref, flow rate, fitting names, dimensions)
-4. **Green cells** auto-recalculate (D, Re, velocity, pressure loss) using Colebrook/Darcy formulas
-5. Click a cell to view its formula in the formula bar
-6. **Download** saves the filled CSV as `Calculate(FLOOR)(REF-NO)-2.csv`
-7. **Template (.csv)** downloads the empty `Calculate(FLOOR)(REF-NO).csv` shell
+1. Open **Step 3 — 試算表匯出** in the left sidebar
+2. Preview shows `Calculate(B1F)(EAF-B1-02)-2.csv` format (from PDF name e.g. `02_EAF-B1-02@B1F.pdf`)
+3. **Amber cells** = editable · **Green cells** = auto-calculated
+4. **Download CSV** saves the filled calculation sheet
 
 ### Step 5 — Submit corrections via API (optional)
 
