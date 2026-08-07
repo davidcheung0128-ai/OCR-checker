@@ -171,23 +171,28 @@ export default function App() {
   const handleBoxDrawn = useCallback((bbox) => {
     setPendingBbox(bbox);
     setDrawMode(false);
-    const targetId = reboxTargetId ?? selectedSectionId;
-    setIsNewBox(!targetId);
-    if (targetId) setSelectedSectionId(targetId);
+    // Draw toolbar = always new component. Only "Re-box #N" sets reboxTargetId.
+    const targetId = reboxTargetId;
+    const creatingNew = targetId == null;
+    setIsNewBox(creatingNew);
+    if (!creatingNew) setSelectedSectionId(targetId);
     setLabelDialogOpen(true);
     setReboxTargetId(null);
-  }, [reboxTargetId, selectedSectionId]);
+  }, [reboxTargetId]);
 
   const handleStartDrawForSelected = () => {
     if (!selectedSectionId) return;
     setReboxTargetId(selectedSectionId);
     setDrawMode(true);
-    setStatusMessage(`Draw a box around component #${selectedSectionId}.`);
+    setStatusMessage(`Re-box mode — drag a new rectangle for component #${selectedSectionId}.`);
   };
 
   const handleDrawModeChange = (enabled) => {
     setDrawMode(enabled);
-    if (enabled) setReboxTargetId(null);
+    if (enabled) {
+      setReboxTargetId(null);
+      setStatusMessage('Draw mode — drag on the drawing to add a new component, then pick its label.');
+    }
   };
 
   const handleDeleteSection = async () => {
@@ -217,18 +222,35 @@ export default function App() {
   const handleLabelSave = async (labelData) => {
     if (!pendingBbox) return;
     setSavingLabel(true);
+    const creatingNew = isNewBox || !selectedSection;
 
     try {
-      if (isNewBox || !selectedSection) {
+      if (creatingNew) {
         const newId = parsedSections.length
           ? Math.max(...parsedSections.map((s) => s.id)) + 1
           : 1;
         const newSection = { id: newId, ...labelData, bbox: pendingBbox, manually_labeled: true };
 
-        await saveFeedback(null, labelData, pendingBbox);
+        await axios.post(`${API_BASE_URL}/api/feedback`, {
+          filename: file?.name || 'unknown.pdf',
+          original: 'Unknown',
+          corrected: labelData.fitting_name,
+          bbox: pendingBbox,
+          section_type: labelData.type,
+          fitting_code: labelData.fitting_code,
+          section_id: newId,
+        });
         setParsedSections((prev) => [...prev, newSection]);
         setSelectedSectionId(newId);
-        setStatusMessage(`Component #${newId} "${labelData.fitting_name}" saved.`);
+        setLabelDialogOpen(false);
+        setPendingBbox(null);
+        setIsNewBox(false);
+        // Stay in Draw so the next drag adds another new component
+        setReboxTargetId(null);
+        setDrawMode(true);
+        setStatusMessage(
+          `Added #${newId} "${labelData.fitting_name}". Draw the next component, or switch to Adjust.`,
+        );
       } else {
         const updated = parsedSections.map((sec) =>
           sec.id === selectedSectionId
@@ -238,11 +260,10 @@ export default function App() {
 
         await saveFeedback(selectedSection, labelData, pendingBbox);
         setParsedSections(updated);
-        setStatusMessage(`Component #${selectedSectionId} corrected and saved.`);
+        setLabelDialogOpen(false);
+        setPendingBbox(null);
+        setStatusMessage(`Component #${selectedSectionId} updated.`);
       }
-
-      setLabelDialogOpen(false);
-      setPendingBbox(null);
     } catch (err) {
       setStatusMessage(`Failed to save: ${err.response?.data?.detail || err.message}`);
     } finally {
@@ -301,6 +322,11 @@ export default function App() {
                   drawMode={drawMode}
                   onDrawModeChange={handleDrawModeChange}
                   onBoxDrawn={handleBoxDrawn}
+                  drawHint={
+                    reboxTargetId
+                      ? `Drag to re-box component #${reboxTargetId}`
+                      : 'Drag to add a new component'
+                  }
                   onBboxChange={handleBboxChange}
                   onSaveTraining={handleSaveTraining}
                   savingTraining={savingTraining}

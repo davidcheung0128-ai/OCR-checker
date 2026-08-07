@@ -55,7 +55,9 @@ export default function DuctTable({
           </p>
         )}
         {drawMode && (
-          <p className="text-[10px] text-orange-600 font-medium">Draw mode — drag on the drawing to box a component</p>
+          <p className="text-[10px] text-orange-600 font-medium">
+            Draw mode — drag on the drawing to add a <strong>new</strong> component (use Re-box to replace the selected one)
+          </p>
         )}
       </div>
 

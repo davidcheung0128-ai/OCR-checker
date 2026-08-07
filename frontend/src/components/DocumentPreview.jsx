@@ -232,7 +232,7 @@ function InteractiveBoxes({
   );
 }
 
-function DrawingOverlay({ active, onBoxComplete }) {
+function DrawingOverlay({ active, onBoxComplete, hint = 'Drag to add a new component' }) {
   const overlayRef = useRef(null);
   const [drawing, setDrawing] = useState(null);
 
@@ -301,7 +301,7 @@ function DrawingOverlay({ active, onBoxComplete }) {
         />
       )}
       <div className="absolute top-3 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-full bg-orange-500 text-white text-xs font-medium pointer-events-none shadow-sm">
-        Drag to draw a new box
+        {hint}
       </div>
     </div>
   );
@@ -322,6 +322,7 @@ function ZoomableStage({
   drawMode,
   onBoxDrawn,
   panMode,
+  drawHint = 'Drag to add a new component',
 }) {
   const viewportRef = useRef(null);
   const zoomRef = useRef(zoom);
@@ -473,7 +474,7 @@ function ZoomableStage({
             />
           )}
 
-          <DrawingOverlay active={drawMode} onBoxComplete={onBoxDrawn} />
+          <DrawingOverlay active={drawMode} onBoxComplete={onBoxDrawn} hint={drawHint} />
         </div>
       </div>
     </div>
@@ -494,6 +495,7 @@ export default function DocumentPreview({
   onBboxChange,
   onSaveTraining,
   savingTraining = false,
+  drawHint = 'Drag to add a new component',
   emptyMessage = 'Upload a PDF drawing to preview it here.',
   className = '',
 }) {
@@ -681,6 +683,7 @@ export default function DocumentPreview({
             drawMode={drawMode}
             onBoxDrawn={onBoxDrawn}
             panMode={panMode}
+            drawHint={drawHint}
           />
         ) : (
           <iframe
