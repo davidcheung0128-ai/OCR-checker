@@ -1,9 +1,8 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import axios from 'axios';
-import Header from './Header';
-import SidebarNav from './SidebarNav';
+import SidebarNav, { PageHeader } from './SidebarNav';
 import UploadSection from './UploadSection';
-import SettingsSection from './SettingsSection';
+import SettingsBar from './SettingsSection';
 import DuctTable from './DuctTable';
 import DocumentPreview from './DocumentPreview';
 import LabelDialog from './LabelDialog';
@@ -20,7 +19,7 @@ export default function App() {
   const [selectedSectionId, setSelectedSectionId] = useState(null);
   const [flowRate, setFlowRate] = useState(0.25);
   const [scaleRatio, setScaleRatio] = useState(1.0);
-  const [statusMessage, setStatusMessage] = useState('Ready — upload a PDF drawing in Step 1.');
+  const [statusMessage, setStatusMessage] = useState('Ready — upload a PDF drawing to begin.');
   const [drawMode, setDrawMode] = useState(false);
   const [reboxTargetId, setReboxTargetId] = useState(null);
   const [labelDialogOpen, setLabelDialogOpen] = useState(false);
@@ -66,6 +65,14 @@ export default function App() {
     });
   };
 
+  const handleRefresh = () => {
+    if (activeStep === 1 && fileInputRef.current) {
+      setStatusMessage('Ready — upload a PDF drawing to begin.');
+    } else {
+      setStatusMessage(`Refreshed — ${parsedSections.length} section(s) loaded.`);
+    }
+  };
+
   const handleFileUpload = async (e) => {
     const selectedFile = e.target.files[0];
     if (!selectedFile) return;
@@ -90,9 +97,9 @@ export default function App() {
 
       const learnedMsg =
         data.learned_labels_applied > 0
-          ? ` ${data.learned_labels_applied} component(s) matched from saved training.`
+          ? ` ${data.learned_labels_applied} matched from training.`
           : '';
-      setStatusMessage(`Analysis complete — review and correct labels in Step 3.${learnedMsg}`);
+      setStatusMessage(`Analysis complete — go to Step 2 to review labels.${learnedMsg}`);
     } catch (err) {
       console.error(err);
       setStatusMessage(`Analysis failed: ${err.response?.data?.detail || err.message}`);
@@ -121,7 +128,7 @@ export default function App() {
     if (!selectedSectionId) return;
     setReboxTargetId(selectedSectionId);
     setDrawMode(true);
-    setStatusMessage(`Draw a box around component #${selectedSectionId} on the drawing.`);
+    setStatusMessage(`Draw a box around component #${selectedSectionId}.`);
   };
 
   const handleDrawModeChange = (enabled) => {
@@ -147,9 +154,9 @@ export default function App() {
         fitting_code: deleted.fitting_code || '',
         section_id: deleted.id,
       });
-      setStatusMessage(`Removed component #${deleted.id} "${deleted.fitting_name}" — saved as incorrect detection.`);
+      setStatusMessage(`Removed #${deleted.id} "${deleted.fitting_name}".`);
     } catch (err) {
-      setStatusMessage(`Removed #${deleted.id} locally. Training save failed: ${err.message}`);
+      setStatusMessage(`Removed #${deleted.id} locally.`);
     }
   };
 
@@ -162,57 +169,47 @@ export default function App() {
         const newId = parsedSections.length
           ? Math.max(...parsedSections.map((s) => s.id)) + 1
           : 1;
-        const newSection = {
-          id: newId,
-          ...labelData,
-          bbox: pendingBbox,
-          manually_labeled: true,
-        };
+        const newSection = { id: newId, ...labelData, bbox: pendingBbox, manually_labeled: true };
 
         await saveFeedback(null, labelData, pendingBbox);
         setParsedSections((prev) => [...prev, newSection]);
         setSelectedSectionId(newId);
-        setStatusMessage(`Component #${newId} "${labelData.fitting_name}" saved for training.`);
+        setStatusMessage(`Component #${newId} "${labelData.fitting_name}" saved.`);
       } else {
         const updated = parsedSections.map((sec) =>
           sec.id === selectedSectionId
-            ? {
-                ...sec,
-                ...labelData,
-                bbox: pendingBbox,
-                manually_labeled: true,
-                learned_from_training: false,
-              }
+            ? { ...sec, ...labelData, bbox: pendingBbox, manually_labeled: true, learned_from_training: false }
             : sec,
         );
 
         await saveFeedback(selectedSection, labelData, pendingBbox);
         setParsedSections(updated);
-        setStatusMessage(
-          `Component #${selectedSectionId} corrected to "${labelData.fitting_name}" and saved for training.`,
-        );
+        setStatusMessage(`Component #${selectedSectionId} corrected and saved.`);
       }
 
       setLabelDialogOpen(false);
       setPendingBbox(null);
     } catch (err) {
-      console.error(err);
-      setStatusMessage(`Failed to save label: ${err.response?.data?.detail || err.message}`);
+      setStatusMessage(`Failed to save: ${err.response?.data?.detail || err.message}`);
     } finally {
       setSavingLabel(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100 font-sans flex flex-col">
-      <Header />
+    <div className="min-h-screen flex">
+      <SidebarNav
+        activeStep={activeStep}
+        onStepChange={setActiveStep}
+        statusMessage={statusMessage}
+      />
 
-      <div className="flex flex-1 min-h-0">
-        <SidebarNav activeStep={activeStep} onStepChange={setActiveStep} />
+      <div className="flex-1 flex flex-col min-w-0 min-h-screen">
+        <PageHeader activeStep={activeStep} onRefresh={handleRefresh} refreshing={analyzing} />
 
-        <main className="flex-1 overflow-auto p-6">
+        <main className="flex-1 overflow-auto p-5 bg-[#f0f2f5]">
           {activeStep === 1 && (
-            <div className="h-full grid grid-cols-1 xl:grid-cols-2 gap-6 min-h-[calc(100vh-8rem)]">
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 min-h-[calc(100vh-9rem)]">
               <UploadSection
                 file={file}
                 fileInputRef={fileInputRef}
@@ -224,56 +221,53 @@ export default function App() {
                 fileName={file?.name}
                 fileType={file?.type}
                 className="min-h-[480px]"
-                emptyMessage="Upload a PDF in the panel on the left to preview your drawing here."
+                emptyMessage="Upload a PDF to preview your drawing here."
               />
             </div>
           )}
 
           {activeStep === 2 && (
-            <div className="flex items-start justify-center min-h-[calc(100vh-8rem)]">
-              <SettingsSection
+            <div className="space-y-4 min-h-[calc(100vh-9rem)] flex flex-col">
+              <SettingsBar
                 flowRate={flowRate}
                 setFlowRate={setFlowRate}
                 scaleRatio={scaleRatio}
                 setScaleRatio={setScaleRatio}
+                compact
               />
-            </div>
-          )}
-
-          {activeStep === 3 && (
-            <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 min-h-[calc(100vh-8rem)]">
-              <DocumentPreview
-                fileUrl={filePreviewUrl}
-                fileName={file?.name}
-                fileType={file?.type}
-                annotations={annotations}
-                selectedId={selectedSectionId}
-                onSelect={setSelectedSectionId}
-                showArrows
-                drawMode={drawMode}
-                onDrawModeChange={handleDrawModeChange}
-                onBoxDrawn={handleBoxDrawn}
-                className="xl:col-span-7 min-h-[520px]"
-                emptyMessage="No drawing loaded. Go to Step 1 and upload a PDF first."
-              />
-              <div className="xl:col-span-5 min-h-[520px]">
-                <DuctTable
-                  analyzing={analyzing}
-                  parsedSections={parsedSections}
-                  onFieldChange={handleFieldChange}
-                  statusMessage={statusMessage}
+              <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 flex-1 min-h-0">
+                <DocumentPreview
+                  fileUrl={filePreviewUrl}
+                  fileName={file?.name}
+                  fileType={file?.type}
+                  annotations={annotations}
                   selectedId={selectedSectionId}
-                  onSelectRow={setSelectedSectionId}
+                  onSelect={setSelectedSectionId}
+                  showArrows
                   drawMode={drawMode}
-                  onStartDrawForSelected={handleStartDrawForSelected}
-                  onDeleteSelected={handleDeleteSection}
-                  learnedCount={learnedCount}
+                  onDrawModeChange={handleDrawModeChange}
+                  onBoxDrawn={handleBoxDrawn}
+                  className="xl:col-span-7 min-h-[520px]"
+                  emptyMessage="No drawing loaded. Upload a PDF in Step 1 first."
                 />
+                <div className="xl:col-span-5 min-h-[520px]">
+                  <DuctTable
+                    analyzing={analyzing}
+                    parsedSections={parsedSections}
+                    onFieldChange={handleFieldChange}
+                    selectedId={selectedSectionId}
+                    onSelectRow={setSelectedSectionId}
+                    drawMode={drawMode}
+                    onStartDrawForSelected={handleStartDrawForSelected}
+                    onDeleteSelected={handleDeleteSection}
+                    learnedCount={learnedCount}
+                  />
+                </div>
               </div>
             </div>
           )}
 
-          {activeStep === 4 && (
+          {activeStep === 3 && (
             <ExcelExportSection
               parsedSections={parsedSections}
               flowRate={flowRate}

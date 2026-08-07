@@ -181,7 +181,7 @@ function DrawingOverlay({ active, onBoxComplete }) {
           style={previewStyle}
         />
       )}
-      <div className="absolute top-3 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-full bg-emerald-600/90 text-white text-xs font-medium pointer-events-none">
+      <div className="absolute top-3 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-full bg-orange-500 text-white text-xs font-medium pointer-events-none shadow-sm">
         Drag to draw a box around the component
       </div>
     </div>
@@ -213,28 +213,26 @@ export default function DocumentPreview({
   }, [fileType, fileName]);
 
   return (
-    <div className={`flex flex-col bg-slate-800 rounded-xl border border-slate-700 overflow-hidden ${className}`}>
-      <div className="px-4 py-3 border-b border-slate-700 flex items-center justify-between bg-slate-800/80 gap-3">
+    <div className={`flex flex-col fse-card overflow-hidden ${className}`}>
+      <div className="fse-card-header gap-3">
         <div className="flex items-center gap-2 min-w-0">
-          <ZoomIn className="w-4 h-4 text-blue-400 shrink-0" />
-          <span className="text-sm font-medium text-slate-200 truncate">
+          <ZoomIn className="w-4 h-4 text-[#1e5a8a] shrink-0" />
+          <span className="text-sm font-medium text-gray-800 truncate">
             {fileName || 'Document Preview'}
           </span>
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
           {showArrows && annotations.length > 0 && (
-            <span className="text-[10px] text-slate-400 hidden sm:inline">
-              {annotations.length} components
-            </span>
+            <span className="fse-badge-blue hidden sm:inline">{annotations.length} components</span>
           )}
           {onDrawModeChange && fileUrl && (
-            <div className="flex rounded-lg border border-slate-600 overflow-hidden">
+            <div className="flex rounded-lg border border-gray-200 overflow-hidden">
               <button
                 type="button"
                 onClick={() => onDrawModeChange(false)}
                 className={`px-2.5 py-1.5 text-xs flex items-center gap-1 ${
-                  !drawMode ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                  !drawMode ? 'bg-[#1e5a8a] text-white' : 'bg-white text-gray-600 hover:bg-gray-50'
                 }`}
               >
                 <MousePointer2 className="w-3 h-3" /> View
@@ -242,22 +240,22 @@ export default function DocumentPreview({
               <button
                 type="button"
                 onClick={() => onDrawModeChange(true)}
-                className={`px-2.5 py-1.5 text-xs flex items-center gap-1 ${
-                  drawMode ? 'bg-emerald-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                className={`px-2.5 py-1.5 text-xs flex items-center gap-1 border-l border-gray-200 ${
+                  drawMode ? 'bg-orange-500 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'
                 }`}
               >
-                <Square className="w-3 h-3" /> Draw Box
+                <Square className="w-3 h-3" /> Draw
               </button>
             </div>
           )}
         </div>
       </div>
 
-      <div className="relative flex-1 min-h-[320px] bg-slate-900/60">
+      <div className="relative flex-1 min-h-[320px] bg-gray-100">
         {!fileUrl ? (
-          <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-500 p-8">
-            <FileText className="w-16 h-16 mb-4 opacity-30" />
-            <p className="text-sm text-center">{emptyMessage}</p>
+          <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-400 p-8">
+            <FileText className="w-16 h-16 mb-4 text-gray-300" />
+            <p className="text-sm text-center text-gray-500">{emptyMessage}</p>
           </div>
         ) : (
           <>

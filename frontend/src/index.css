@@ -1,3 +1,55 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-[#f0f2f5] text-gray-800 antialiased;
+  }
+}
+
+@layer components {
+  .fse-card {
+    @apply bg-white rounded-xl shadow-sm border border-gray-200/80;
+  }
+
+  .fse-card-header {
+    @apply px-5 py-4 border-b border-gray-100 flex items-center justify-between;
+  }
+
+  .fse-btn-primary {
+    @apply px-4 py-2 rounded-lg bg-[#1e5a8a] hover:bg-[#174a72] text-white text-sm font-medium transition-colors shadow-sm;
+  }
+
+  .fse-btn-secondary {
+    @apply px-4 py-2 rounded-lg bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 text-sm font-medium transition-colors;
+  }
+
+  .fse-btn-orange {
+    @apply px-4 py-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium transition-colors shadow-sm;
+  }
+
+  .fse-btn-danger {
+    @apply px-3 py-1.5 rounded-lg bg-red-50 border border-red-200 hover:bg-red-100 text-red-600 text-xs font-medium transition-colors;
+  }
+
+  .fse-input {
+    @apply w-full bg-white border border-gray-300 rounded-lg px-3 py-2.5 text-sm text-gray-800 focus:border-[#1e5a8a] focus:ring-2 focus:ring-[#1e5a8a]/20 outline-none;
+  }
+
+  .fse-label {
+    @apply block text-sm text-gray-600 mb-1.5 font-medium;
+  }
+
+  .fse-badge-blue {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800;
+  }
+
+  .fse-badge-green {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700;
+  }
+
+  .fse-badge-orange {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-orange-100 text-orange-700;
+  }
+}

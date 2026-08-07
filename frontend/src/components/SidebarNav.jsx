@@ -1,52 +1,105 @@
 import React from 'react';
-import { Upload, Layers, CheckCircle, FileSpreadsheet } from 'lucide-react';
+import { Upload, Tag, FileSpreadsheet, RefreshCw } from 'lucide-react';
 
-const STEPS = [
-  { id: 1, label: '上傳圖紙', sublabel: 'Upload PDF', icon: Upload },
-  { id: 2, label: '系統設定', sublabel: 'Settings', icon: Layers },
-  { id: 3, label: '組件明細', sublabel: 'Label & Review', icon: CheckCircle },
-  { id: 4, label: '標準 Excel', sublabel: 'Export Report', icon: FileSpreadsheet },
+export const NAV_STEPS = [
+  { id: 1, label: '上傳圖紙', sublabel: 'Upload Drawing', icon: Upload },
+  { id: 2, label: '組件標註', sublabel: 'Label & Review', icon: Tag },
+  { id: 3, label: '試算表匯出', sublabel: 'Calculate Export', icon: FileSpreadsheet },
 ];
 
-export default function SidebarNav({ activeStep, onStepChange }) {
+export const PAGE_TITLES = {
+  1: { title: '上傳圖紙 Upload Drawing', icon: Upload },
+  2: { title: '組件標註 Label & Review', icon: Tag },
+  3: { title: '試算表匯出 Calculate Export', icon: FileSpreadsheet },
+};
+
+export default function SidebarNav({ activeStep, onStepChange, statusMessage }) {
   return (
-    <nav className="w-56 shrink-0 bg-slate-900 border-r border-slate-700 flex flex-col">
-      <div className="px-4 py-5 border-b border-slate-700">
-        <p className="text-[10px] uppercase tracking-widest text-slate-500 font-semibold">Workflow</p>
-        <p className="text-sm text-slate-300 mt-0.5">Step-by-step guide</p>
+    <aside className="w-64 shrink-0 bg-white border-r border-gray-200 flex flex-col shadow-sm">
+      {/* Logo */}
+      <div className="px-5 py-5 border-b border-gray-100">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-lg bg-[#1e5a8a] flex items-center justify-center text-white font-bold text-sm shrink-0">
+            FSEE
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-bold text-gray-900 leading-tight">FSE Engineering</p>
+            <p className="text-[11px] text-gray-500 leading-tight">富信工程集團</p>
+          </div>
+        </div>
+        <p className="text-[10px] text-gray-400 mt-3 leading-snug">
+          AI HVAC Duct Pressure Drop Calculator
+        </p>
       </div>
 
-      <ul className="flex-1 p-3 space-y-1">
-        {STEPS.map(({ id, label, sublabel, icon: Icon }) => {
+      {/* Navigation */}
+      <nav className="flex-1 p-3 space-y-1">
+        {NAV_STEPS.map(({ id, label, sublabel, icon: Icon }) => {
           const isActive = activeStep === id;
           return (
-            <li key={id}>
-              <button
-                type="button"
-                onClick={() => onStepChange(id)}
-                className={`w-full text-left px-3 py-3 rounded-lg flex items-start gap-3 transition duration-150 ${
-                  isActive
-                    ? 'bg-blue-600/20 border border-blue-500/50 text-white'
-                    : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200 border border-transparent'
-                }`}
-              >
-                <span
-                  className={`flex items-center justify-center w-7 h-7 rounded-md text-xs font-bold shrink-0 ${
-                    isActive ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300'
-                  }`}
-                >
-                  {id}
+            <button
+              key={id}
+              type="button"
+              onClick={() => onStepChange(id)}
+              className={`w-full text-left px-4 py-3 rounded-lg flex items-center gap-3 transition-all duration-150 ${
+                isActive
+                  ? 'bg-blue-50 text-[#1e5a8a] border border-blue-100 shadow-sm'
+                  : 'text-gray-600 hover:bg-gray-50 border border-transparent'
+              }`}
+            >
+              <Icon className={`w-5 h-5 shrink-0 ${isActive ? 'text-[#1e5a8a]' : 'text-gray-400'}`} />
+              <span className="min-w-0">
+                <span className={`block text-sm font-medium leading-tight ${isActive ? 'text-[#1e5a8a]' : 'text-gray-700'}`}>
+                  {label}
                 </span>
-                <span className="min-w-0">
-                  <span className="block text-sm font-medium leading-tight">{label}</span>
-                  <span className="block text-[10px] text-slate-500 mt-0.5">{sublabel}</span>
-                </span>
-                <Icon className={`w-4 h-4 ml-auto shrink-0 mt-0.5 ${isActive ? 'text-blue-400' : 'text-slate-600'}`} />
-              </button>
-            </li>
+                <span className="block text-[10px] text-gray-400 mt-0.5">{sublabel}</span>
+              </span>
+            </button>
           );
         })}
-      </ul>
-    </nav>
+      </nav>
+
+      {/* Status footer */}
+      <div className="p-4 border-t border-gray-100 space-y-3">
+        <div className="fse-card p-3 bg-gray-50">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+            <span className="text-xs font-medium text-gray-700">System Online</span>
+          </div>
+          <p className="text-[10px] text-gray-500 leading-relaxed">VLLM & MinerU connected</p>
+        </div>
+        {statusMessage && (
+          <p className="text-[10px] text-gray-400 line-clamp-3 leading-relaxed">{statusMessage}</p>
+        )}
+      </div>
+    </aside>
+  );
+}
+
+export function PageHeader({ activeStep, onRefresh, refreshing }) {
+  const page = PAGE_TITLES[activeStep] || PAGE_TITLES[1];
+  const Icon = page.icon;
+
+  return (
+    <header className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between shadow-sm shrink-0">
+      <div className="w-40" />
+      <div className="flex items-center gap-2.5">
+        <Icon className="w-5 h-5 text-[#1e5a8a]" />
+        <h1 className="text-base font-bold text-gray-800">{page.title}</h1>
+      </div>
+      <div className="w-40 flex justify-end">
+        {onRefresh && (
+          <button
+            type="button"
+            onClick={onRefresh}
+            disabled={refreshing}
+            className="fse-btn-secondary flex items-center gap-2 text-xs"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
+            Refresh
+          </button>
+        )}
+      </div>
+    </header>
   );
 }
