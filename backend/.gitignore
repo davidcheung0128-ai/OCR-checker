@@ -1,1 +1,10 @@
 __pycache__/
+*.pyc
+data/uploads/*
+!data/uploads/.gitkeep
+data/yolo_dataset/images/
+data/yolo_dataset/labels/
+!data/yolo_dataset/.gitkeep
+runs/
+*.pt
+!weights/.gitkeep
