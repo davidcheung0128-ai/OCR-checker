@@ -8,9 +8,18 @@ const ROUGHNESS = 0.15;
 const ASHRAE_FITTINGS = {
   'CR9-4': 0.18,
   'SR4-1': 0.89,
-  SILENCER_DEFAULT: 2.4,
-  FLEX_DEFAULT: 2.4,
+  SILENCER_DEFAULT: 0,
+  FLEX_DEFAULT: 0,
   GRILLE: 15.0,
+};
+
+/** Manufacturer / schedule fixed pressure drops (Pa) when C-factor is not used */
+const FIXED_LOSS_PA = {
+  Silencer: 75,
+  'Flexible connector': 5,
+  'Fire Damper': 10,
+  Louvre: 50,
+  GRILLE: null,
 };
 
 export function parsePdfFilename(filename = '') {
@@ -72,12 +81,23 @@ export function computeSectionPhysics(sec, flowRate) {
 
   let cCoeff = 0;
   const code = sec.fitting_code || '';
-  if (code && ASHRAE_FITTINGS[code]) cCoeff = ASHRAE_FITTINGS[code];
-  if (cCoeff === 0 && sec.fitting_name?.toLowerCase().includes('grille')) cCoeff = 15;
+  if (sec.c_coefficient != null && sec.c_coefficient !== '' && Number(sec.c_coefficient) > 0) {
+    cCoeff = Number(sec.c_coefficient);
+  } else if (code && ASHRAE_FITTINGS[code] != null) {
+    cCoeff = ASHRAE_FITTINGS[code];
+  } else if (sec.fitting_name?.toLowerCase().includes('grille')) {
+    cCoeff = 15;
+  }
 
   const frictionPaPerM = D > 0 ? ((1000 * f) / D) * velPressure : 0;
   const frictionLoss = L > 0 && D > 0 ? frictionPaPerM * L : 0;
-  const fittingLoss = cCoeff * velPressure;
+
+  let fittingLoss = cCoeff * velPressure;
+  const fixed = FIXED_LOSS_PA[sec.fitting_name];
+  if (fixed != null && !(cCoeff > 0)) {
+    fittingLoss = fixed;
+  }
+
   const totalLoss = frictionLoss + fittingLoss;
 
   return {

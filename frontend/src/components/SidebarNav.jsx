@@ -17,17 +17,13 @@ export default function SidebarNav({ activeStep, onStepChange, statusMessage }) 
   return (
     <aside className="w-64 shrink-0 bg-white border-r border-gray-200 flex flex-col shadow-sm">
       {/* Logo */}
-      <div className="px-5 py-5 border-b border-gray-100">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-[#1e5a8a] flex items-center justify-center text-white font-bold text-sm shrink-0">
-            FSEE
-          </div>
-          <div className="min-w-0">
-            <p className="text-sm font-bold text-gray-900 leading-tight">FSE Engineering</p>
-            <p className="text-[11px] text-gray-500 leading-tight">富信工程集團</p>
-          </div>
-        </div>
-        <p className="text-[10px] text-gray-400 mt-3 leading-snug">
+      <div className="px-4 py-4 border-b border-gray-100">
+        <img
+          src="/fse-logo.svg"
+          alt="FSE Engineering Group Ltd · 豐盛機電工程集團有限公司"
+          className="w-full h-auto"
+        />
+        <p className="text-[10px] text-gray-400 mt-2 leading-snug">
           AI HVAC Duct Pressure Drop Calculator
         </p>
       </div>
