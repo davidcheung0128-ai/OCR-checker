@@ -16,12 +16,12 @@ export const PAGE_TITLES = {
 export default function SidebarNav({ activeStep, onStepChange, statusMessage }) {
   return (
     <aside className="w-64 shrink-0 bg-white border-r border-gray-200 flex flex-col shadow-sm">
-      {/* Logo */}
+      {/* Logo — official FSE Engineering Group Ltd mark */}
       <div className="px-4 py-4 border-b border-gray-100">
         <img
-          src="/fse-logo.svg"
+          src="/fse-logo.png"
           alt="FSE Engineering Group Ltd · 豐盛機電工程集團有限公司"
-          className="w-full h-auto"
+          className="w-full h-auto object-contain"
         />
         <p className="text-[10px] text-gray-400 mt-2 leading-snug">
           AI HVAC Duct Pressure Drop Calculator
