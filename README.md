@@ -18,20 +18,28 @@ AI-powered web app for analyzing HVAC engineering drawings (PDF) and calculating
 Coordinate “Save Training” alone only remembers **where** boxes were on one PDF.  
 To land boxes on **new** drawings automatically:
 
-1. Upload a PDF → Step 2 → **Draw / Adjust** boxes onto the duct → **Save Training**  
+1. Rebuild backend once (needs `git` + Ultralytics CLIP for YOLO-World bootstrap):
+
+```bash
+git pull
+docker compose down
+docker compose up --build
+```
+
+2. Upload a PDF → Step 2 → **Draw / Adjust** boxes onto the duct → **Save Training**  
    (exports YOLO labels under `backend/data/yolo_dataset/`)
-2. Repeat for several different plans (horizontal, L-shaped, etc.)
-3. Train:
+3. Repeat for several different plans (horizontal, L-shaped, etc.)
+4. Train the **custom** detector (this is what makes CAD recognition work):
 
 ```bash
 docker compose exec backend python train_yolo.py
 ```
 
-4. Restart backend (or wait for reload). Next uploads use `backend/weights/duct_yolo.pt`.
+5. Restart / wait for reload. Next uploads use `backend/weights/duct_yolo.pt`.
 
 Check detector status: `GET http://localhost:8000/api/detector/status`
 
-Until custom weights exist, the backend tries **YOLO-World** open-vocab as a bootstrap (often weak on CAD). Fine-tuning on your labeled drawings is what makes cross-plan detection work.
+**Note:** YOLO-World is only a bootstrap. It is trained on photos, not HVAC CAD, so expect weak results until you fine-tune `duct_yolo.pt` on your labeled drawings.
 
 ---
 

@@ -11,9 +11,10 @@ ENV PYTHONUNBUFFERED 1
 ENV YOLO_ENABLED=1
 ENV YOLO_WEIGHTS=weights/duct_yolo.pt
 
-# 安裝系統依賴 (psycopg2, scipy, OpenCV for YOLO)
+# 安裝系統依賴 (psycopg2, scipy, OpenCV, git for Ultralytics CLIP / YOLO-World)
 RUN apt-get update && apt-get install -y \
     build-essential \
+    git \
     libpq-dev \
     libgl1 \
     libglib2.0-0 \
@@ -25,7 +26,11 @@ RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir \
       torch==2.2.2 torchvision==0.17.2 \
       --index-url https://download.pytorch.org/whl/cpu && \
-    pip install --no-cache-dir -r requirements.txt
+    pip install --no-cache-dir -r requirements.txt && \
+    # YOLO-World needs Ultralytics CLIP (requires git above)
+    pip install --no-cache-dir \
+      "git+https://github.com/ultralytics/CLIP.git" \
+      ftfy regex
 
 # 將後端原始碼複製到容器內
 COPY . .

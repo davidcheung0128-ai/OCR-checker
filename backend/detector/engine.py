@@ -107,8 +107,16 @@ def _load_model():
         except Exception as exc:
             _model = None
             _model_mode = "unavailable"
-            _model_error = str(exc)
-            print(f"[yolo] failed to load model: {exc}")
+            msg = str(exc)
+            if "clip" in msg.lower() or "No module named 'clip'" in msg:
+                msg = (
+                    f"{msg} — rebuild backend image so CLIP installs "
+                    "(Dockerfile now includes git + ultralytics CLIP). "
+                    "For reliable CAD detection, label plans → Save Training → "
+                    "python train_yolo.py → weights/duct_yolo.pt"
+                )
+            _model_error = msg
+            print(f"[yolo] failed to load model: {msg}")
             return None
 
 
