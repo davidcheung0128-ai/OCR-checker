@@ -363,10 +363,11 @@ Adjust these to match your project's design conditions before exporting.
 The AI bounding boxes may not align correctly. Use manual labeling to fix them:
 
 1. Select a row in the **Duct Section Details** table
-2. Click **Re-box Selected** (or toggle **Draw Box** for a new component)
-3. Drag a rectangle on the drawing preview around the correct component
-4. Fill in the label dialog (name, type, dimensions, ASHRAE code)
-5. Click **Save & Train** — this stores the correction in the database for future recognition
+2. Click **Re-box #N** (or toggle **Draw Box** for a new component)
+3. **Delete** removes a wrong AI label box entirely (saved as incorrect detection for training)
+4. Drag a rectangle on the drawing preview around the correct component
+5. Fill in the label dialog (name, type, dimensions, ASHRAE code)
+6. Click **Save & Train** — this stores the correction in the database for future recognition
 
 | Indicator | Meaning |
 |---|---|
@@ -376,12 +377,15 @@ The AI bounding boxes may not align correctly. Use manual labeling to fix them:
 
 On the next upload, similar components (overlapping bounding boxes) will use your saved labels automatically.
 
-### Step 4 — Export Excel report
+### Step 4 — Preview, edit, and export Calculate sheet
 
 1. Open **Step 4 — 標準 Excel** in the left sidebar
-2. Review the section summary (Suction / Discharge counts, verified labels)
-3. Click **Download Young's Standard Excel**
-4. The backend calculates Darcy/Colebrook losses and downloads the ESP calculation sheet
+2. The preview shows the Young's `Calculate(B1F)(EAF-B1-02)` format (filename derived from your PDF, e.g. `02_EAF-B1-02@B1F.pdf` → `Calculate(B1F)(EAF-B1-02)-2.csv`)
+3. **Amber cells** are editable (location, ref, flow rate, fitting names, dimensions)
+4. **Green cells** auto-recalculate (D, Re, velocity, pressure loss) using Colebrook/Darcy formulas
+5. Click a cell to view its formula in the formula bar
+6. **Download** saves the filled CSV as `Calculate(FLOOR)(REF-NO)-2.csv`
+7. **Template (.csv)** downloads the empty `Calculate(FLOOR)(REF-NO).csv` shell
 
 ### Step 5 — Submit corrections via API (optional)
 

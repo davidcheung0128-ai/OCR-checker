@@ -12,6 +12,7 @@ from datetime import datetime
 
 from excel_exporter import generate_pressure_drop_excel
 from physics_engine import calculate_duct_section
+from csv_exporter import generate_calculate_csv, calculate_filename, parse_pdf_filename
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./local_fallback.db")
 VLLM_API_URL = os.getenv("VLLM_API_URL", "https://ai.fse.com.hk/vllm/v1")
@@ -82,6 +83,18 @@ class DuctSectionInput(BaseModel):
     fitting_code: Optional[str] = ""
 
 
+class CsvExportRequest(BaseModel):
+    flow_rate: float = 0.25
+    floor: str = "B1F"
+    ref_no: str = "EAF-B1-02"
+    location: str = "B1/F Master Water Meter Room"
+    project_name: str = "Dedicated Rehousing at Ma Tau Kok"
+    specified_esp: float = 400.0
+    offered_esp: float = 450.0
+    filled: bool = True
+    sections: List[DuctSectionInput]
+
+
 class ExcelExportRequest(BaseModel):
     flow_rate: float = 0.25
     project_name: str = "Dedicated Rehousing at Ma Tau Kok"
@@ -132,6 +145,8 @@ def apply_learned_labels(sections: list, db: Session) -> list:
     learned = []
     for row in feedback_rows:
         if not row.bounding_box:
+            continue
+        if row.corrected_label == "[DELETED]":
             continue
         learned.append({
             "corrected_label": row.corrected_label,
@@ -268,6 +283,28 @@ async def upload_and_analyze_pdf(file: UploadFile = File(...), db: Session = Dep
         "sections": sections_with_learning,
         "learned_labels_applied": learned_count,
     }
+
+
+@app.post("/api/export/csv")
+def export_csv(payload: CsvExportRequest):
+    section_dicts = [s.model_dump() for s in payload.sections]
+    output = generate_calculate_csv(
+        sections=section_dicts,
+        flow_rate=payload.flow_rate,
+        floor=payload.floor,
+        ref_no=payload.ref_no,
+        location=payload.location,
+        project_name=payload.project_name,
+        specified_esp=payload.specified_esp,
+        offered_esp=payload.offered_esp,
+        filled=payload.filled,
+    )
+    filename = calculate_filename(payload.floor, payload.ref_no, filled=payload.filled)
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @app.post("/api/export/excel")

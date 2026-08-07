@@ -27,7 +27,6 @@ export default function App() {
   const [pendingBbox, setPendingBbox] = useState(null);
   const [isNewBox, setIsNewBox] = useState(false);
   const [savingLabel, setSavingLabel] = useState(false);
-  const [exporting, setExporting] = useState(false);
   const [learnedCount, setLearnedCount] = useState(0);
   const fileInputRef = useRef(null);
 
@@ -130,6 +129,30 @@ export default function App() {
     if (enabled) setReboxTargetId(null);
   };
 
+  const handleDeleteSection = async () => {
+    if (!selectedSectionId || !selectedSection) return;
+
+    const deleted = selectedSection;
+    const remaining = parsedSections.filter((s) => s.id !== selectedSectionId);
+    setParsedSections(remaining);
+    setSelectedSectionId(remaining[0]?.id ?? null);
+
+    try {
+      await axios.post(`${API_BASE_URL}/api/feedback`, {
+        filename: file?.name || 'unknown.pdf',
+        original: deleted.fitting_name,
+        corrected: '[DELETED]',
+        bbox: deleted.bbox || { x: 0, y: 0, w: 0, h: 0 },
+        section_type: deleted.type,
+        fitting_code: deleted.fitting_code || '',
+        section_id: deleted.id,
+      });
+      setStatusMessage(`Removed component #${deleted.id} "${deleted.fitting_name}" — saved as incorrect detection.`);
+    } catch (err) {
+      setStatusMessage(`Removed #${deleted.id} locally. Training save failed: ${err.message}`);
+    }
+  };
+
   const handleLabelSave = async (labelData) => {
     if (!pendingBbox) return;
     setSavingLabel(true);
@@ -177,49 +200,6 @@ export default function App() {
       setStatusMessage(`Failed to save label: ${err.response?.data?.detail || err.message}`);
     } finally {
       setSavingLabel(false);
-    }
-  };
-
-  const handleExportExcel = async () => {
-    if (parsedSections.length === 0) return;
-    setExporting(true);
-    setStatusMessage('Calculating Darcy/Colebrook pressure drop and generating Excel…');
-
-    try {
-      const response = await axios.post(
-        `${API_BASE_URL}/api/export/excel`,
-        {
-          flow_rate: flowRate,
-          ref_no: file?.name?.replace('.pdf', '') || 'EAF-B1-02',
-          sections: parsedSections.map((s) => ({
-            id: s.id,
-            type: s.type,
-            fitting_name: s.fitting_name,
-            a_mm: s.a_mm,
-            b_mm: s.b_mm,
-            length_m: s.length_m,
-            fitting_code: s.fitting_code,
-          })),
-        },
-        { responseType: 'blob' },
-      );
-
-      const blob = new Blob([response.data], {
-        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      });
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `ESP_Calculation_${file?.name?.replace('.pdf', '') || 'report'}.xlsx`;
-      link.click();
-      window.URL.revokeObjectURL(url);
-
-      setStatusMessage('Excel download complete.');
-    } catch (err) {
-      console.error(err);
-      setStatusMessage(`Export failed: ${err.response?.data?.detail || err.message}`);
-    } finally {
-      setExporting(false);
     }
   };
 
@@ -286,6 +266,7 @@ export default function App() {
                   onSelectRow={setSelectedSectionId}
                   drawMode={drawMode}
                   onStartDrawForSelected={handleStartDrawForSelected}
+                  onDeleteSelected={handleDeleteSection}
                   learnedCount={learnedCount}
                 />
               </div>
@@ -296,9 +277,11 @@ export default function App() {
             <ExcelExportSection
               parsedSections={parsedSections}
               flowRate={flowRate}
+              fileName={file?.name}
+              onSectionsChange={setParsedSections}
+              onFlowRateChange={setFlowRate}
               statusMessage={statusMessage}
-              onExportExcel={handleExportExcel}
-              exporting={exporting}
+              onStatusChange={setStatusMessage}
             />
           )}
         </main>

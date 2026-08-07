@@ -1,5 +1,5 @@
 import React from 'react';
-import { RefreshCw, Square, CheckCircle2 } from 'lucide-react';
+import { RefreshCw, Square, CheckCircle2, Trash2 } from 'lucide-react';
 
 export default function DuctTable({
   analyzing,
@@ -10,6 +10,7 @@ export default function DuctTable({
   onSelectRow,
   drawMode,
   onStartDrawForSelected,
+  onDeleteSelected,
   learnedCount = 0,
 }) {
   return (
@@ -32,7 +33,17 @@ export default function DuctTable({
             className="flex-1 px-2 py-1.5 text-[11px] rounded-lg bg-slate-700 hover:bg-slate-600 disabled:opacity-40 text-slate-200 flex items-center justify-center gap-1"
           >
             <Square className="w-3 h-3" />
-            Re-box Selected #{selectedId || '—'}
+            Re-box #{selectedId || '—'}
+          </button>
+          <button
+            type="button"
+            onClick={onDeleteSelected}
+            disabled={!selectedId}
+            className="px-2 py-1.5 text-[11px] rounded-lg bg-red-900/40 hover:bg-red-900/60 disabled:opacity-40 text-red-300 flex items-center justify-center gap-1 border border-red-800/50"
+            title="Delete wrong label box"
+          >
+            <Trash2 className="w-3 h-3" />
+            Delete
           </button>
         </div>
         {learnedCount > 0 && (
