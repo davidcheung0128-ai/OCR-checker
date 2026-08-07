@@ -5,11 +5,12 @@ AI-powered web app for analyzing HVAC engineering drawings (PDF) and calculating
 ## Features
 
 - **PDF drawing upload** — sends drawings to MinerU for visual parsing
-- **AI-assisted duct detection** — identifies duct runs, fittings, and dimensions (VLLM integration planned)
+- **Interactive labeling (Step 2)** — Draw new fittings, Adjust/resize boxes, zoom & pan locked to the diagram
+- **Save Training** — stores corrected boxes for reuse and YOLO dataset export
+- **YOLO duct detector** — auto-places fitting boxes across different plans after fine-tuning
 - **Pressure drop calculation** — Darcy/Colebrook friction and ASHRAE fitting coefficients
-- **Excel export** — generates Young's Engineering standard ESP calculation sheets
-- **User feedback loop** — stores manual corrections in PostgreSQL for future model training
-- **YOLO duct detector** — places fitting boxes on the drawing across different plans (fine-tune with your labels)
+- **CSV / Excel export** — Young's Engineering Calculate sheet format
+- **User feedback loop** — corrections stored in PostgreSQL for model training
 
 ---
 
@@ -26,14 +27,20 @@ docker compose down
 docker compose up --build
 ```
 
-2. Upload a PDF → Step 2 → **Draw / Adjust** boxes onto the duct → **Save Training**  
+2. Upload a PDF → Step 2:
+   - Use **Draw** to add **new** components (each drag opens the label dialog)
+   - Use **Adjust** to move/resize existing boxes
+   - Click **Save Training** when the boxes sit on the duct  
    (exports YOLO labels under `backend/data/yolo_dataset/`)
 3. Repeat for several different plans (horizontal, L-shaped, etc.)
-4. Train the **custom** detector (this is what makes CAD recognition work):
+4. In a terminal (same machine, inside the repo folder), train:
 
 ```bash
+cd OCR-checker   # folder that contains docker-compose.yml
 docker compose exec backend python train_yolo.py
 ```
+
+> Paste that command in your **terminal** (not in the browser). Containers must already be running (`docker compose up`).
 
 5. Restart / wait for reload. Next uploads use `backend/weights/duct_yolo.pt`.
 
@@ -382,15 +389,32 @@ The frontend and backend bind to `0.0.0.0`, so other devices on the same Wi-Fi/L
 
 Flow rate and scale settings appear in the compact bar at the top of this step.
 
-1. Select a row in **Duct Section Details**
-2. Click **Re-box #N** or toggle **Draw** on the drawing
-3. **Delete** removes wrong label boxes (saved for training)
-4. Drag a box on the drawing, fill the label dialog, click **Save & Train**
+#### Drawing tools
+
+| Control | What it does |
+|---|---|
+| **Draw** | Always creates a **new** component. Drag a rectangle → label dialog → save. Stays in Draw so you can add the next fitting. |
+| **Adjust** | Move / resize existing boxes (drag body to move, corner/edge handles to resize). |
+| **Re-box #N** | Replaces **only** the selected row’s box (does not add a new component). |
+| **Save Training** | Saves all current boxes + labels for this PDF and exports YOLO training data. |
+| **Zoom + / − / Fit** | Zoom the drawing; boxes stay locked to the diagram. |
+| **Hand** or **Space+drag** | Pan horizontally and vertically when zoomed. **Ctrl+scroll** also zooms. |
+| **Delete** | Removes the selected component (recorded for training). |
+
+#### Typical labeling flow (new plan)
+
+1. Upload the PDF in Step 1 (new / different plans may start with **no** boxes until YOLO is trained).
+2. Click **Draw**.
+3. Drag a box onto a fitting on the duct → choose type/name in the dialog → save.
+4. Keep drawing until all fittings (e.g. 1–22) are labeled.
+5. Switch to **Adjust** if you need to nudge or resize boxes.
+6. Click **Save Training**.
+7. After labeling several PDFs, train YOLO (see [YOLO auto-labeling](#yolo-auto-labeling-across-different-plans)).
 
 | Indicator | Meaning |
 |---|---|
-| **Green box** | Manually verified |
-| **★** | Matched from saved training |
+| **Green box** | Manually verified / saved |
+| **★** | Matched from saved training or YOLO |
 | **✓** | Manually labeled |
 
 ### Step 3 — Preview, edit, and export Calculate sheet
@@ -429,6 +453,11 @@ curl -X POST "http://localhost:8000/api/feedback" \
 | `MINERU_API_URL` | `https://ai.fse.com.hk/mineru/file_parse` | MinerU PDF parsing endpoint |
 | `OLLAMA_EMBEDDING_API` | `https://ai.fse.com.hk/api2` | Embedding API for legend matching |
 | `OLLAMA_EMBEDDING_MODEL` | `bge-m3` | Embedding model name |
+| `YOLO_ENABLED` | `1` | Set `0` to disable detector on upload |
+| `YOLO_WEIGHTS` | `weights/duct_yolo.pt` | Path to fine-tuned YOLO weights |
+| `YOLO_CONF` | `0.20` | Detection confidence threshold |
+| `UPLOAD_DIR` | `data/uploads` | Cached PDFs for YOLO export |
+| `YOLO_DATASET_DIR` | `data/yolo_dataset` | Exported images + labels for training |
 
 ### Frontend
 
@@ -445,21 +474,27 @@ curl -X POST "http://localhost:8000/api/feedback" \
 ```
 OCR-checker/
 ├── backend/
-│   ├── main.py              # FastAPI app — upload, feedback, health check
+│   ├── main.py              # FastAPI — upload, feedback, YOLO, export
+│   ├── detector/            # YOLO classes, rasterize, train dataset, engine
+│   ├── train_yolo.py        # Fine-tune custom duct_yolo.pt
+│   ├── weights/             # Place duct_yolo.pt here after training
+│   ├── data/uploads/        # Cached PDFs (for YOLO export)
+│   ├── data/yolo_dataset/   # Exported images + labels
+│   ├── training_seed.py     # EAF-B1-02 seed sections + symbol legend
 │   ├── physics_engine.py    # Darcy/Colebrook pressure drop calculations
-│   ├── excel_exporter.py    # Young's Engineering Excel generator
+│   ├── csv_exporter.py      # Young's Calculate CSV export
+│   ├── excel_exporter.py    # Excel generator
 │   ├── requirements.txt
 │   └── Dockerfile
 ├── frontend/
 │   ├── src/
-│   │   ├── main.jsx         # React entry point
-│   │   └── components/      # UI components (App, Header, Upload, Settings, Table)
-│   ├── index.html
+│   │   ├── main.jsx
+│   │   ├── components/      # App, DocumentPreview, DuctTable, Excel preview, …
+│   │   └── utils/
+│   ├── public/              # fse-logo.png
 │   ├── vite.config.js
-│   ├── tailwind.config.js
-│   ├── postcss.config.js
 │   └── Dockerfile
-├── docker-compose.yml       # Orchestrates db + backend + frontend
+├── docker-compose.yml
 └── README.md
 ```
 
