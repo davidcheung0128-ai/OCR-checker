@@ -1,0 +1,3 @@
+# Place fine-tuned weights here as duct_yolo.pt
+*.pt
+!.gitkeep

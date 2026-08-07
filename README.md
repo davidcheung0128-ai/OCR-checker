@@ -9,6 +9,29 @@ AI-powered web app for analyzing HVAC engineering drawings (PDF) and calculating
 - **Pressure drop calculation** — Darcy/Colebrook friction and ASHRAE fitting coefficients
 - **Excel export** — generates Young's Engineering standard ESP calculation sheets
 - **User feedback loop** — stores manual corrections in PostgreSQL for future model training
+- **YOLO duct detector** — places fitting boxes on the drawing across different plans (fine-tune with your labels)
+
+---
+
+## YOLO auto-labeling (across different plans)
+
+Coordinate “Save Training” alone only remembers **where** boxes were on one PDF.  
+To land boxes on **new** drawings automatically:
+
+1. Upload a PDF → Step 2 → **Draw / Adjust** boxes onto the duct → **Save Training**  
+   (exports YOLO labels under `backend/data/yolo_dataset/`)
+2. Repeat for several different plans (horizontal, L-shaped, etc.)
+3. Train:
+
+```bash
+docker compose exec backend python train_yolo.py
+```
+
+4. Restart backend (or wait for reload). Next uploads use `backend/weights/duct_yolo.pt`.
+
+Check detector status: `GET http://localhost:8000/api/detector/status`
+
+Until custom weights exist, the backend tries **YOLO-World** open-vocab as a bootstrap (often weak on CAD). Fine-tuning on your labeled drawings is what makes cross-plan detection work.
 
 ---
 

@@ -7,20 +7,30 @@ WORKDIR /app
 # 設置環境變數，防止 Python 寫入 .pyc 檔案，並確保終端機輸出不會被緩衝
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
+# Prefer CPU inference in containers unless a GPU image is used
+ENV YOLO_ENABLED=1
+ENV YOLO_WEIGHTS=weights/duct_yolo.pt
 
-# 安裝系統依賴 (部分 Python 套件編譯需要，例如 psycopg2, scipy)
+# 安裝系統依賴 (psycopg2, scipy, OpenCV for YOLO)
 RUN apt-get update && apt-get install -y \
     build-essential \
     libpq-dev \
+    libgl1 \
+    libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
 # 複製 requirements.txt 並安裝 Python 依賴
 COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir \
+      torch==2.2.2 torchvision==0.17.2 \
+      --index-url https://download.pytorch.org/whl/cpu && \
     pip install --no-cache-dir -r requirements.txt
 
 # 將後端原始碼複製到容器內
 COPY . .
+
+RUN mkdir -p weights data/uploads data/yolo_dataset/images/train data/yolo_dataset/labels/train
 
 # 暴露 FastAPI 的 8000 端口
 EXPOSE 8000

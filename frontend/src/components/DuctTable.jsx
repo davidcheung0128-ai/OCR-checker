@@ -76,7 +76,9 @@ export default function DuctTable({
             {parsedSections.length === 0 ? (
               <tr>
                 <td colSpan="7" className="p-10 text-center text-gray-400">
-                  No data yet. Upload a drawing in Step 1.
+                  {analyzing
+                    ? 'Detecting duct fittings…'
+                    : 'No boxes yet. Use Draw to box fittings on the duct, then Save Training.'}
                 </td>
               </tr>
             ) : (

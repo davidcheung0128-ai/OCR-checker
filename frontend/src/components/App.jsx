@@ -81,7 +81,7 @@ export default function App() {
     setFile(selectedFile);
     setAnalyzing(true);
     setActiveStep(1);
-    setStatusMessage('Sending to FSEE MinerU and VLLM for drawing analysis…');
+    setStatusMessage('Detecting fittings with YOLO / MinerU…');
 
     const formData = new FormData();
     formData.append('file', selectedFile);
@@ -96,16 +96,22 @@ export default function App() {
       setSelectedSectionId(sections[0]?.id ?? null);
       setLearnedCount(data.learned_labels_applied || 0);
 
-      const seedNote = data.training_seed
-        ? ` Using basic training from ${data.training_seed} (${sections.length} components).`
-        : '';
-      const learnedMsg =
-        data.learned_labels_applied > 0
-          ? ` ${data.learned_labels_applied} matched from saved labels.`
-          : '';
-      const mineruNote = data.mineru_ok === false ? ' (MinerU offline — seed labels used.)' : '';
-      setStatusMessage(`Analysis complete — go to Step 2 to review labels.${seedNote}${learnedMsg}${mineruNote}`);
-      if (sections.length > 0) setActiveStep(2);
+      const yolo = data.yolo || {};
+      const source = data.detection_source || '';
+      let detail = '';
+      if (source.startsWith('yolo')) {
+        detail = ` YOLO placed ${sections.length} box(es) (${yolo.mode || 'detect'}). Review in Step 2.`;
+      } else if (source === 'saved_filename') {
+        detail = ` Restored ${sections.length} saved box(es) for this PDF.`;
+      } else if (source === 'eaf_seed') {
+        detail = ` Using EAF-B1-02 seed layout (${sections.length} components).`;
+      } else if (source === 'manual_required') {
+        detail =
+          ' No auto detections yet for this plan — go to Step 2, Draw/Adjust boxes on the duct, then Save Training. After a few plans, run: docker compose exec backend python train_yolo.py';
+      }
+      const mineruNote = data.mineru_ok === false ? ' (MinerU offline.)' : '';
+      setStatusMessage(`Analysis complete.${detail}${mineruNote}`);
+      setActiveStep(2);
     } catch (err) {
       console.error(err);
       setStatusMessage(`Analysis failed: ${err.response?.data?.detail || err.message}`);

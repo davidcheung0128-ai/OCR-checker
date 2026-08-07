@@ -24,13 +24,20 @@ services:
     environment:
       # 資料庫連線字串
       - DATABASE_URL=postgresql://fsee_user:fsee_password@db:5432/fsee_hvac_db
-      
+
       # FSEE 企業私有 AI 工具鏈配置
       - VLLM_API_URL=https://ai.fse.com.hk/vllm/v1
       - VLLM_MODEL=Qwen/Qwen3.6-27B-FP8
       - MINERU_API_URL=https://ai.fse.com.hk/mineru/file_parse
       - OLLAMA_EMBEDDING_API=https://ai.fse.com.hk/api2
       - OLLAMA_EMBEDDING_MODEL=bge-m3
+
+      # YOLO duct detector
+      - YOLO_ENABLED=1
+      - YOLO_WEIGHTS=weights/duct_yolo.pt
+      - YOLO_CONF=0.20
+      - UPLOAD_DIR=data/uploads
+      - YOLO_DATASET_DIR=data/yolo_dataset
     depends_on:
       - db
     volumes:
