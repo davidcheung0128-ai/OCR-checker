@@ -26,6 +26,7 @@ export default function App() {
   const [pendingBbox, setPendingBbox] = useState(null);
   const [isNewBox, setIsNewBox] = useState(false);
   const [savingLabel, setSavingLabel] = useState(false);
+  const [savingTraining, setSavingTraining] = useState(false);
   const [learnedCount, setLearnedCount] = useState(0);
   const fileInputRef = useRef(null);
 
@@ -117,6 +118,48 @@ export default function App() {
     const updated = [...parsedSections];
     updated[index][field] = value;
     setParsedSections(updated);
+  };
+
+  const handleBboxChange = useCallback((id, bbox) => {
+    setParsedSections((prev) =>
+      prev.map((sec) =>
+        sec.id === id ? { ...sec, bbox, manually_labeled: true } : sec,
+      ),
+    );
+  }, []);
+
+  const handleSaveTraining = async () => {
+    if (!parsedSections.length) {
+      setStatusMessage('No boxes to save — upload a drawing first.');
+      return;
+    }
+    setSavingTraining(true);
+    try {
+      const { data } = await axios.post(`${API_BASE_URL}/api/training/save-all`, {
+        filename: file?.name || '02_EAF-B1-02@B1F.pdf',
+        sections: parsedSections.map((sec) => ({
+          id: sec.id,
+          type: sec.type,
+          fitting_name: sec.fitting_name,
+          fitting_code: sec.fitting_code || '',
+          a_mm: sec.a_mm,
+          b_mm: sec.b_mm,
+          length_m: sec.length_m ?? 0,
+          bbox: sec.bbox,
+        })),
+      });
+      setLearnedCount(data.saved || parsedSections.length);
+      setStatusMessage(
+        data.message ||
+          `Saved ${data.saved} box(es) for future training.`,
+      );
+    } catch (err) {
+      setStatusMessage(
+        `Save training failed: ${err.response?.data?.detail || err.message}`,
+      );
+    } finally {
+      setSavingTraining(false);
+    }
   };
 
   const handleBoxDrawn = useCallback((bbox) => {
@@ -252,6 +295,9 @@ export default function App() {
                   drawMode={drawMode}
                   onDrawModeChange={handleDrawModeChange}
                   onBoxDrawn={handleBoxDrawn}
+                  onBboxChange={handleBboxChange}
+                  onSaveTraining={handleSaveTraining}
+                  savingTraining={savingTraining}
                   className="xl:col-span-7 min-h-[520px]"
                   emptyMessage="No drawing loaded. Upload a PDF in Step 1 first."
                 />

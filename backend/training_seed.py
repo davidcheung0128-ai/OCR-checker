@@ -1,13 +1,27 @@
 """
 Basic training seed from Young's EAF-B1-02 Calculate sheet + labeled duct run 1–11.
 
-This seeds:
-1. Ground-truth component labels (Excel names + typical bbox positions along the run)
-2. A simple symbol legend (visual cue → fitting name) for future embedding / MinerU matching
+Bboxes are percent-of-preview coordinates targeting the horizontal duct
+inside the MASTER WATER METER ROOM (center-right of the plan).
+Users can drag/resize boxes in the UI and Save to overwrite these.
 """
 
-# Horizontal duct run layout (percent of drawing), left → right matching labels 1–11
-# Tuned for typical EAF-B1-02 Master Water Meter Room plan orientation.
+# Horizontal duct run in Master Water Meter Room (approx. center-right of drawing)
+# x ≈ 52–82%, y ≈ 40–48% — aligned to the assembly with small labels 1–11 on the tube
+_BASE_Y = 41.5
+_BASE_H = 7.0
+_START_X = 52.0
+_GAPS = [0.3] * 10
+_WIDTHS = [2.6, 2.8, 3.6, 3.2, 2.2, 2.5, 3.2, 2.8, 2.9, 2.3, 3.2]
+
+
+def _run_bbox(index: int) -> dict:
+    x = _START_X
+    for i in range(index):
+        x += _WIDTHS[i] + _GAPS[i]
+    return {"x": round(x, 2), "y": _BASE_Y, "w": _WIDTHS[index], "h": _BASE_H}
+
+
 EAF_B1_02_SECTIONS = [
     {
         "id": 1,
@@ -17,7 +31,7 @@ EAF_B1_02_SECTIONS = [
         "b_mm": 600,
         "length_m": 0.0,
         "fitting_code": "GRILLE",
-        "bbox": {"x": 10, "y": 43, "w": 5.5, "h": 9},
+        "bbox": _run_bbox(0),
         "visual_cue": "Mesh / grille pattern at intake",
     },
     {
@@ -28,7 +42,7 @@ EAF_B1_02_SECTIONS = [
         "b_mm": 600,
         "length_m": 0.0,
         "fitting_code": "CR9-4",
-        "bbox": {"x": 16.5, "y": 43, "w": 5.5, "h": 9},
+        "bbox": _run_bbox(1),
         "visual_cue": "Dense grid / mesh square on duct",
     },
     {
@@ -39,7 +53,7 @@ EAF_B1_02_SECTIONS = [
         "b_mm": 250,
         "length_m": 1.4,
         "fitting_code": "",
-        "bbox": {"x": 23, "y": 44.5, "w": 9, "h": 6},
+        "bbox": _run_bbox(2),
         "visual_cue": "Plain rectangular duct segment",
     },
     {
@@ -50,7 +64,7 @@ EAF_B1_02_SECTIONS = [
         "b_mm": 250,
         "length_m": 0.0,
         "fitting_code": "SILENCER_DEFAULT",
-        "bbox": {"x": 33, "y": 43, "w": 7, "h": 9},
+        "bbox": _run_bbox(3),
         "visual_cue": "Rectangle with parallel horizontal louvre lines",
     },
     {
@@ -61,7 +75,7 @@ EAF_B1_02_SECTIONS = [
         "b_mm": 250,
         "length_m": 0.0,
         "fitting_code": "FLEX_DEFAULT",
-        "bbox": {"x": 41, "y": 43, "w": 4, "h": 9},
+        "bbox": _run_bbox(4),
         "visual_cue": "Thin joint / flex band between duct pieces",
     },
     {
@@ -72,7 +86,7 @@ EAF_B1_02_SECTIONS = [
         "b_mm": 250,
         "length_m": 0.0,
         "fitting_code": "FLEX_DEFAULT",
-        "bbox": {"x": 46, "y": 43, "w": 5, "h": 9},
+        "bbox": _run_bbox(5),
         "visual_cue": "Flex joint after fan (often highlighted)",
     },
     {
@@ -83,7 +97,7 @@ EAF_B1_02_SECTIONS = [
         "b_mm": 250,
         "length_m": 0.0,
         "fitting_code": "SILENCER_DEFAULT",
-        "bbox": {"x": 52, "y": 43, "w": 7, "h": 9},
+        "bbox": _run_bbox(6),
         "visual_cue": "Rectangle with parallel horizontal louvre lines",
     },
     {
@@ -94,7 +108,7 @@ EAF_B1_02_SECTIONS = [
         "b_mm": 250,
         "length_m": 0.0,
         "fitting_code": "CR9-4",
-        "bbox": {"x": 60, "y": 43, "w": 5.5, "h": 9},
+        "bbox": _run_bbox(7),
         "visual_cue": "Valve symbol (two triangles / arrow through duct)",
     },
     {
@@ -105,7 +119,7 @@ EAF_B1_02_SECTIONS = [
         "b_mm": 400,
         "length_m": 0.0,
         "fitting_code": "SR4-1",
-        "bbox": {"x": 66.5, "y": 42, "w": 6, "h": 10},
+        "bbox": _run_bbox(8),
         "visual_cue": "Duct size change / taper section",
         "theta": 60,
         "area_ratio": 1.60,
@@ -118,7 +132,7 @@ EAF_B1_02_SECTIONS = [
         "b_mm": 400,
         "length_m": 0.0,
         "fitting_code": "",
-        "bbox": {"x": 73.5, "y": 43, "w": 4.5, "h": 9},
+        "bbox": _run_bbox(9),
         "visual_cue": "Thin dark vertical band / FD mark on duct",
     },
     {
@@ -129,13 +143,12 @@ EAF_B1_02_SECTIONS = [
         "b_mm": 400,
         "length_m": 0.0,
         "fitting_code": "",
-        "bbox": {"x": 79, "y": 43, "w": 7, "h": 9},
-        "visual_cue": "End outlet with horizontal louvre lines",
+        "bbox": _run_bbox(10),
+        "visual_cue": "End outlet with horizontal louvre blades",
     },
 ]
 
 
-# Basic legend: how each part typically looks → standard Young’s Excel name
 SYMBOL_LEGEND = [
     {
         "name": "Air Grille",
@@ -200,7 +213,6 @@ SEED_SOURCE_FILENAME = "02_EAF-B1-02@B1F.pdf"
 
 
 def get_default_sections():
-    """Return clean section dicts for upload fallback / demo."""
     sections = []
     for item in EAF_B1_02_SECTIONS:
         sec = {
@@ -223,20 +235,47 @@ def get_default_sections():
     return sections
 
 
-def seed_training_data(db, UserFeedback, force: bool = False) -> dict:
-    """
-    Insert EAF-B1-02 ground-truth labels into user_feedback if empty (or force=True).
-    Returns counts of what was seeded.
-    """
-    existing = db.query(UserFeedback).filter(
-        UserFeedback.filename == SEED_SOURCE_FILENAME
-    ).count()
+def _seed_bbox(item: dict) -> dict:
+    return {**item["bbox"], "section_id": item["id"]}
 
-    if existing > 0 and not force:
+
+def seed_training_data(db, UserFeedback, force: bool = False) -> dict:
+    existing_rows = (
+        db.query(UserFeedback)
+        .filter(UserFeedback.filename == SEED_SOURCE_FILENAME)
+        .order_by(UserFeedback.id.asc())
+        .all()
+    )
+
+    if existing_rows and not force:
+        # Refresh default positions onto the tube unless the user already Save-Training'd
+        refreshed = 0
+        for idx, item in enumerate(EAF_B1_02_SECTIONS):
+            if idx >= len(existing_rows):
+                break
+            row = existing_rows[idx]
+            bb = row.bounding_box if isinstance(row.bounding_box, dict) else {}
+            if bb.get("manual_save"):
+                continue
+            new_bb = _seed_bbox(item)
+            if (
+                round(float(bb.get("x", -1)), 2) != new_bb["x"]
+                or round(float(bb.get("y", -1)), 2) != new_bb["y"]
+                or round(float(bb.get("w", -1)), 2) != new_bb["w"]
+                or round(float(bb.get("h", -1)), 2) != new_bb["h"]
+            ):
+                row.bounding_box = new_bb
+                row.corrected_label = item["fitting_name"]
+                row.section_type = item["type"]
+                row.fitting_code = item["fitting_code"] or ""
+                refreshed += 1
+        if refreshed:
+            db.commit()
         return {
             "seeded": False,
             "reason": "already_seeded",
-            "existing_labels": existing,
+            "existing_labels": len(existing_rows),
+            "bboxes_refreshed": refreshed,
             "legend_entries": len(SYMBOL_LEGEND),
         }
 
@@ -251,13 +290,12 @@ def seed_training_data(db, UserFeedback, force: bool = False) -> dict:
                 filename=SEED_SOURCE_FILENAME,
                 original_ai_label="Unknown",
                 corrected_label=item["fitting_name"],
-                bounding_box=item["bbox"],
+                bounding_box=_seed_bbox(item),
                 section_type=item["type"],
                 fitting_code=item["fitting_code"] or "",
             )
         )
 
-    # Store legend as special feedback rows (bbox empty / sentinel)
     for legend in SYMBOL_LEGEND:
         db.add(
             UserFeedback(

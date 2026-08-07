@@ -154,8 +154,21 @@ def bbox_iou(a: dict, b: dict) -> float:
     return inter / union if union > 0 else 0.0
 
 
+def _clean_bbox(bbox: dict) -> dict:
+    """Return x/y/w/h only (percent coords) for UI / IoU."""
+    return {
+        "x": float(bbox.get("x", 0)),
+        "y": float(bbox.get("y", 0)),
+        "w": float(bbox.get("w", 4)),
+        "h": float(bbox.get("h", 3)),
+    }
+
+
 def apply_learned_labels(sections: list, db: Session) -> list:
-    """Apply saved manual labels when bbox overlaps with training data."""
+    """
+    Prefer newest saved training boxes (by section_id), then IoU overlap.
+    Manual save-all / feedback rows with section_id win over seed defaults.
+    """
     feedback_rows = (
         db.query(UserFeedback)
         .filter(UserFeedback.filename != "__symbol_legend__")
@@ -166,22 +179,42 @@ def apply_learned_labels(sections: list, db: Session) -> list:
     if not feedback_rows:
         return sections
 
+    by_section_id = {}
     learned = []
     for row in feedback_rows:
-        if not row.bounding_box:
+        if not row.bounding_box or not isinstance(row.bounding_box, dict):
             continue
-        if isinstance(row.bounding_box, dict) and row.bounding_box.get("legend"):
+        if row.bounding_box.get("legend"):
             continue
-        learned.append({
+        item = {
             "corrected_label": row.corrected_label,
             "fitting_code": row.fitting_code or "",
             "section_type": row.section_type or "Suction",
-            "bbox": row.bounding_box,
-        })
+            "bbox": _clean_bbox(row.bounding_box),
+            "manual_save": bool(row.bounding_box.get("manual_save")),
+            "section_id": row.bounding_box.get("section_id"),
+        }
+        sid = item["section_id"]
+        if sid is not None and sid not in by_section_id:
+            by_section_id[int(sid)] = item
+        learned.append(item)
 
     updated = []
     for sec in sections:
         sec_copy = dict(sec)
+        sid = sec_copy.get("id")
+        if sid is not None and int(sid) in by_section_id:
+            match = by_section_id[int(sid)]
+            sec_copy["fitting_name"] = match["corrected_label"]
+            sec_copy["fitting_code"] = match["fitting_code"]
+            sec_copy["type"] = match["section_type"]
+            sec_copy["bbox"] = match["bbox"]
+            sec_copy["learned_from_training"] = True
+            if match["manual_save"]:
+                sec_copy["manually_labeled"] = True
+            updated.append(sec_copy)
+            continue
+
         sec_bbox = sec_copy.get("bbox")
         if not sec_bbox:
             updated.append(sec_copy)
@@ -201,6 +234,8 @@ def apply_learned_labels(sections: list, db: Session) -> list:
             sec_copy["type"] = best_match["section_type"]
             sec_copy["bbox"] = best_match["bbox"]
             sec_copy["learned_from_training"] = True
+            if best_match["manual_save"]:
+                sec_copy["manually_labeled"] = True
 
         updated.append(sec_copy)
 
@@ -273,13 +308,88 @@ def get_legend():
     return {"legend": SYMBOL_LEGEND, "source": SEED_SOURCE_FILENAME}
 
 
+class TrainingSectionPayload(BaseModel):
+    id: int
+    type: str = "Suction"
+    fitting_name: str
+    fitting_code: Optional[str] = ""
+    a_mm: Optional[float] = 500
+    b_mm: Optional[float] = 250
+    length_m: Optional[float] = 0.0
+    bbox: BboxModel
+
+
+class SaveAllTrainingRequest(BaseModel):
+    filename: str
+    sections: List[TrainingSectionPayload]
+
+
+def _bbox_payload(bbox: BboxModel, section_id: int) -> dict:
+    return {
+        "x": float(bbox.x),
+        "y": float(bbox.y),
+        "w": float(bbox.w),
+        "h": float(bbox.h),
+        "section_id": section_id,
+        "manual_save": True,
+    }
+
+
+@app.post("/api/training/save-all")
+def save_all_training(payload: SaveAllTrainingRequest, db: Session = Depends(get_db)):
+    """
+    Persist drag/resized boxes + labels as the newest training set.
+    Replaces prior rows for this filename and mirrors onto the EAF seed filename
+    so the next upload reuses these positions.
+    """
+    if not payload.sections:
+        raise HTTPException(status_code=400, detail="No sections to save")
+
+    filenames = list(dict.fromkeys([payload.filename, SEED_SOURCE_FILENAME]))
+    db.query(UserFeedback).filter(
+        UserFeedback.filename.in_(filenames),
+    ).delete(synchronize_session=False)
+
+    saved = 0
+    for sec in payload.sections:
+        bbox = _bbox_payload(sec.bbox, sec.id)
+        for fname in filenames:
+            db.add(
+                UserFeedback(
+                    filename=fname,
+                    original_ai_label=sec.fitting_name,
+                    corrected_label=sec.fitting_name,
+                    bounding_box=bbox,
+                    section_type=sec.type,
+                    fitting_code=sec.fitting_code or "",
+                )
+            )
+        saved += 1
+
+    db.commit()
+    return {
+        "status": "success",
+        "ok": True,
+        "saved": saved,
+        "filename": payload.filename,
+        "message": (
+            f"Saved {saved} training box(es). "
+            "They will be reused on future uploads of this drawing."
+        ),
+    }
+
+
 @app.post("/api/feedback")
 def submit_correction(payload: FeedbackRequest, db: Session = Depends(get_db)):
+    bbox = payload.bbox.model_dump()
+    if payload.section_id is not None:
+        bbox["section_id"] = payload.section_id
+        bbox["manual_save"] = True
     feedback = UserFeedback(
         filename=payload.filename,
         original_ai_label=payload.original,
         corrected_label=payload.corrected,
-        bounding_box=payload.bbox.model_dump(),
+        bounding_box=bbox,
         section_type=payload.section_type,
         fitting_code=payload.fitting_code,
     )
