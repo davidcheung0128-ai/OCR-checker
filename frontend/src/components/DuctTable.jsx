@@ -1,6 +1,18 @@
 import React from 'react';
 import { RefreshCw, Square, CheckCircle2, Trash2, List } from 'lucide-react';
 
+const ASHRAE_PRESETS = [
+  'GRILLE',
+  'CR9-4',
+  'SILENCER_DEFAULT',
+  'FLEX_DEFAULT',
+  'SR4-1',
+  'CR3-1',
+  'CR3-6',
+  'SR2-1',
+  'ER1-1',
+];
+
 export default function DuctTable({
   analyzing,
   parsedSections,
@@ -102,15 +114,19 @@ export default function DuctTable({
                       )}
                     </td>
                     <td className="p-2.5">
-                      <span
-                        className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${
-                          sec.type === 'Suction'
-                            ? 'bg-amber-100 text-amber-700'
-                            : 'bg-cyan-100 text-cyan-700'
+                      <select
+                        value={sec.type || 'Suction'}
+                        onChange={(e) => onFieldChange(idx, 'type', e.target.value)}
+                        onClick={(e) => e.stopPropagation()}
+                        className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium border-0 outline-none cursor-pointer ${
+                          sec.type === 'Discharge'
+                            ? 'bg-cyan-100 text-cyan-700'
+                            : 'bg-amber-100 text-amber-700'
                         }`}
                       >
-                        {sec.type}
-                      </span>
+                        <option value="Suction">Suction</option>
+                        <option value="Discharge">Discharge</option>
+                      </select>
                     </td>
                     <td className="p-2.5">
                       <input
@@ -149,7 +165,23 @@ export default function DuctTable({
                         className="bg-transparent border-b border-gray-200 focus:border-[#1e5a8a] outline-none w-14 text-green-700 font-mono"
                       />
                     </td>
-                    <td className="p-2.5 text-gray-500">{sec.fitting_code || '—'}</td>
+                    <td className="p-2.5">
+                      <input
+                        type="text"
+                        list={`ashrae-presets-${sec.id}`}
+                        value={sec.fitting_code || ''}
+                        placeholder="—"
+                        title="ASHRAE / fitting code (editable)"
+                        onChange={(e) => onFieldChange(idx, 'fitting_code', e.target.value)}
+                        onClick={(e) => e.stopPropagation()}
+                        className="bg-transparent border-b border-gray-200 focus:border-[#1e5a8a] outline-none w-24 text-gray-700 font-mono"
+                      />
+                      <datalist id={`ashrae-presets-${sec.id}`}>
+                        {ASHRAE_PRESETS.map((code) => (
+                          <option key={code} value={code} />
+                        ))}
+                      </datalist>
+                    </td>
                   </tr>
                 );
               })

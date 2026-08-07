@@ -401,6 +401,8 @@ Flow rate and scale settings appear in the compact bar at the top of this step.
 | **Hand** or **Space+drag** | Pan horizontally and vertically when zoomed. **Ctrl+scroll** also zooms. |
 | **Delete** | Removes the selected component (recorded for training). |
 
+You can edit **Fitting / Run**, **a / b / L**, **Type** (Suction/Discharge), and **ASHRAE** code directly in the table after labeling. ASHRAE accepts free text or a preset (e.g. `GRILLE`, `CR9-4`, `SR4-1`).
+
 #### Typical labeling flow (new plan)
 
 1. Upload the PDF in Step 1 (new / different plans may start with **no** boxes until YOLO is trained).
