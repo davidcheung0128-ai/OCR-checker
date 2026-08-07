@@ -1,20 +1,49 @@
 import React from 'react';
-import { RefreshCw, Download } from 'lucide-react';
+import { RefreshCw, Square, CheckCircle2 } from 'lucide-react';
 
 export default function DuctTable({
   analyzing,
   parsedSections,
   onFieldChange,
   statusMessage,
-  onExportExcel,
   selectedId,
   onSelectRow,
+  drawMode,
+  onStartDrawForSelected,
+  learnedCount = 0,
 }) {
   return (
     <div className="bg-slate-800 rounded-xl border border-slate-700 shadow-md flex flex-col h-full">
-      <div className="px-4 py-3 border-b border-slate-700 flex justify-between items-center">
+      <div className="px-4 py-3 border-b border-slate-700 flex justify-between items-center gap-2">
         <h2 className="text-sm font-semibold text-slate-200">Duct Section Details</h2>
         {analyzing && <RefreshCw className="w-4 h-4 text-blue-400 animate-spin" />}
+      </div>
+
+      <div className="px-4 py-2 border-b border-slate-700/60 bg-slate-800/50 space-y-2">
+        <p className="text-[11px] text-slate-400 leading-relaxed">
+          AI boxes may be wrong. Select a row, click <strong className="text-emerald-400">Re-box</strong>, then
+          draw the correct area. Or use <strong className="text-emerald-400">Draw Box</strong> to add a new component.
+        </p>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={onStartDrawForSelected}
+            disabled={!selectedId}
+            className="flex-1 px-2 py-1.5 text-[11px] rounded-lg bg-slate-700 hover:bg-slate-600 disabled:opacity-40 text-slate-200 flex items-center justify-center gap-1"
+          >
+            <Square className="w-3 h-3" />
+            Re-box Selected #{selectedId || '—'}
+          </button>
+        </div>
+        {learnedCount > 0 && (
+          <p className="text-[10px] text-emerald-400 flex items-center gap-1">
+            <CheckCircle2 className="w-3 h-3" />
+            {learnedCount} component(s) matched from saved training data
+          </p>
+        )}
+        {drawMode && (
+          <p className="text-[10px] text-emerald-300 animate-pulse">Draw mode active — drag on the drawing</p>
+        )}
       </div>
 
       <div className="flex-1 overflow-auto">
@@ -24,9 +53,9 @@ export default function DuctTable({
               <th className="p-2">#</th>
               <th className="p-2">Type</th>
               <th className="p-2">Fitting / Run</th>
-              <th className="p-2">a (mm)</th>
-              <th className="p-2">b (mm)</th>
-              <th className="p-2">L (m)</th>
+              <th className="p-2">a</th>
+              <th className="p-2">b</th>
+              <th className="p-2">L</th>
               <th className="p-2">ASHRAE</th>
             </tr>
           </thead>
@@ -48,7 +77,15 @@ export default function DuctTable({
                       isSelected ? 'bg-blue-900/30 ring-1 ring-inset ring-blue-500/40' : 'hover:bg-slate-700/30'
                     }`}
                   >
-                    <td className="p-2 font-bold text-blue-400">{sec.id}</td>
+                    <td className="p-2">
+                      <span className="font-bold text-blue-400">{sec.id}</span>
+                      {sec.manually_labeled && (
+                        <span className="ml-1 text-[9px] text-emerald-400" title="Manually verified">✓</span>
+                      )}
+                      {sec.learned_from_training && !sec.manually_labeled && (
+                        <span className="ml-1 text-[9px] text-amber-400" title="From training">★</span>
+                      )}
+                    </td>
                     <td className="p-2">
                       <span
                         className={`px-2 py-0.5 rounded text-[10px] ${
@@ -106,19 +143,11 @@ export default function DuctTable({
         </table>
       </div>
 
-      <div className="p-4 border-t border-slate-700 space-y-3">
+      <div className="p-4 border-t border-slate-700">
         <div className="text-xs text-slate-400">
           <span className="font-semibold text-slate-300">Status: </span>
           {statusMessage}
         </div>
-        <button
-          type="button"
-          onClick={onExportExcel}
-          disabled={parsedSections.length === 0}
-          className="w-full px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-700 text-white font-medium text-xs rounded-lg shadow-md flex items-center justify-center gap-2 transition duration-200"
-        >
-          <Download className="w-4 h-4" /> Download Young's Standard Excel
-        </button>
       </div>
     </div>
   );

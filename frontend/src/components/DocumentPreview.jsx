@@ -1,5 +1,5 @@
-import React, { useMemo } from 'react';
-import { FileText, ZoomIn } from 'lucide-react';
+import React, { useMemo, useRef, useState, useCallback } from 'react';
+import { FileText, ZoomIn, MousePointer2, Square } from 'lucide-react';
 
 const TYPE_COLORS = {
   Suction: { stroke: '#fbbf24', fill: 'rgba(251,191,36,0.15)', badge: '#d97706' },
@@ -30,7 +30,7 @@ function AnnotationOverlay({ annotations, selectedId, onSelect, showArrows }) {
 
   return (
     <svg
-      className="absolute inset-0 w-full h-full pointer-events-none"
+      className="absolute inset-0 w-full h-full pointer-events-none z-10"
       viewBox="0 0 100 100"
       preserveAspectRatio="none"
     >
@@ -45,10 +45,7 @@ function AnnotationOverlay({ annotations, selectedId, onSelect, showArrows }) {
             refY="2"
             orient="auto"
           >
-            <polygon
-              points="0 0, 4 2, 0 4"
-              fill={TYPE_COLORS[ann.type]?.stroke || '#60a5fa'}
-            />
+            <polygon points="0 0, 4 2, 0 4" fill={TYPE_COLORS[ann.type]?.stroke || '#60a5fa'} />
           </marker>
         ))}
       </defs>
@@ -56,6 +53,7 @@ function AnnotationOverlay({ annotations, selectedId, onSelect, showArrows }) {
       {annotations.map((ann, index) => {
         const colors = TYPE_COLORS[ann.type] || TYPE_COLORS.Suction;
         const isSelected = selectedId === ann.id;
+        const isManual = ann.manually_labeled;
         const { cx, cy, lx, ly } = getLabelPosition(ann.bbox, index);
         const { x, y, w, h } = ann.bbox;
 
@@ -67,9 +65,9 @@ function AnnotationOverlay({ annotations, selectedId, onSelect, showArrows }) {
               width={w}
               height={h}
               fill={isSelected ? colors.fill : 'transparent'}
-              stroke={colors.stroke}
-              strokeWidth={isSelected ? 0.35 : 0.2}
-              strokeDasharray={isSelected ? 'none' : '0.8 0.4'}
+              stroke={isManual ? '#34d399' : colors.stroke}
+              strokeWidth={isSelected ? 0.4 : 0.25}
+              strokeDasharray={isManual ? 'none' : isSelected ? 'none' : '0.8 0.4'}
               rx={0.4}
             />
 
@@ -80,8 +78,8 @@ function AnnotationOverlay({ annotations, selectedId, onSelect, showArrows }) {
                   y1={ly + 2.5}
                   x2={cx}
                   y2={cy}
-                  stroke={colors.stroke}
-                  strokeWidth={isSelected ? 0.3 : 0.2}
+                  stroke={isManual ? '#34d399' : colors.stroke}
+                  strokeWidth={isSelected ? 0.35 : 0.22}
                   markerEnd={`url(#arrowhead-${ann.id})`}
                 />
                 <rect
@@ -90,8 +88,8 @@ function AnnotationOverlay({ annotations, selectedId, onSelect, showArrows }) {
                   width={6}
                   height={5}
                   rx={0.8}
-                  fill={colors.badge}
-                  stroke={isSelected ? '#fff' : colors.stroke}
+                  fill={isManual ? '#059669' : colors.badge}
+                  stroke={isSelected ? '#fff' : isManual ? '#34d399' : colors.stroke}
                   strokeWidth={isSelected ? 0.25 : 0}
                 />
                 <text
@@ -101,20 +99,92 @@ function AnnotationOverlay({ annotations, selectedId, onSelect, showArrows }) {
                   fontSize="2.8"
                   fill="#fff"
                   fontWeight="bold"
-                  style={{ pointerEvents: 'none' }}
                 >
                   {ann.id}
                 </text>
               </>
             )}
-
-            {!showArrows && (
-              <circle cx={cx} cy={cy} r={1.2} fill={colors.stroke} opacity={0.8} />
-            )}
           </g>
         );
       })}
     </svg>
+  );
+}
+
+function DrawingOverlay({ active, onBoxComplete }) {
+  const overlayRef = useRef(null);
+  const [drawing, setDrawing] = useState(null);
+
+  const toPercentBbox = useCallback((x1, y1, x2, y2) => {
+    const rect = overlayRef.current?.getBoundingClientRect();
+    if (!rect || rect.width === 0 || rect.height === 0) return null;
+
+    const left = Math.min(x1, x2) - rect.left;
+    const top = Math.min(y1, y2) - rect.top;
+    const width = Math.abs(x2 - x1);
+    const height = Math.abs(y2 - y1);
+
+    if (width < 8 || height < 8) return null;
+
+    return {
+      x: (left / rect.width) * 100,
+      y: (top / rect.height) * 100,
+      w: (width / rect.width) * 100,
+      h: (height / rect.height) * 100,
+    };
+  }, []);
+
+  const handleMouseDown = (e) => {
+    if (!active) return;
+    setDrawing({ startX: e.clientX, startY: e.clientY, currentX: e.clientX, currentY: e.clientY });
+  };
+
+  const handleMouseMove = (e) => {
+    if (!drawing) return;
+    setDrawing((prev) => ({ ...prev, currentX: e.clientX, currentY: e.clientY }));
+  };
+
+  const handleMouseUp = () => {
+    if (!drawing) return;
+    const bbox = toPercentBbox(drawing.startX, drawing.startY, drawing.currentX, drawing.currentY);
+    setDrawing(null);
+    if (bbox) onBoxComplete?.(bbox);
+  };
+
+  if (!active) return null;
+
+  let previewStyle = null;
+  if (drawing && overlayRef.current) {
+    const rect = overlayRef.current.getBoundingClientRect();
+    const left = Math.min(drawing.startX, drawing.currentX) - rect.left;
+    const top = Math.min(drawing.startY, drawing.currentY) - rect.top;
+    previewStyle = {
+      left: `${left}px`,
+      top: `${top}px`,
+      width: `${Math.abs(drawing.currentX - drawing.startX)}px`,
+      height: `${Math.abs(drawing.currentY - drawing.startY)}px`,
+    };
+  }
+
+  return (
+    <div
+      ref={overlayRef}
+      className="absolute inset-0 z-20 cursor-crosshair"
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseUp}
+    >
+      {previewStyle && (
+        <div
+          className="absolute border-2 border-emerald-400 bg-emerald-400/10 pointer-events-none"
+          style={previewStyle}
+        />
+      )}
+      <div className="absolute top-3 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-full bg-emerald-600/90 text-white text-xs font-medium pointer-events-none">
+        Drag to draw a box around the component
+      </div>
+    </div>
   );
 }
 
@@ -126,6 +196,9 @@ export default function DocumentPreview({
   selectedId,
   onSelect,
   showArrows = false,
+  drawMode = false,
+  onDrawModeChange,
+  onBoxDrawn,
   emptyMessage = 'Upload a PDF drawing to preview it here.',
   className = '',
 }) {
@@ -141,18 +214,43 @@ export default function DocumentPreview({
 
   return (
     <div className={`flex flex-col bg-slate-800 rounded-xl border border-slate-700 overflow-hidden ${className}`}>
-      <div className="px-4 py-3 border-b border-slate-700 flex items-center justify-between bg-slate-800/80">
+      <div className="px-4 py-3 border-b border-slate-700 flex items-center justify-between bg-slate-800/80 gap-3">
         <div className="flex items-center gap-2 min-w-0">
           <ZoomIn className="w-4 h-4 text-blue-400 shrink-0" />
           <span className="text-sm font-medium text-slate-200 truncate">
             {fileName || 'Document Preview'}
           </span>
         </div>
-        {showArrows && annotations.length > 0 && (
-          <span className="text-[10px] text-slate-400 shrink-0 ml-2">
-            {annotations.length} components annotated
-          </span>
-        )}
+
+        <div className="flex items-center gap-2 shrink-0">
+          {showArrows && annotations.length > 0 && (
+            <span className="text-[10px] text-slate-400 hidden sm:inline">
+              {annotations.length} components
+            </span>
+          )}
+          {onDrawModeChange && fileUrl && (
+            <div className="flex rounded-lg border border-slate-600 overflow-hidden">
+              <button
+                type="button"
+                onClick={() => onDrawModeChange(false)}
+                className={`px-2.5 py-1.5 text-xs flex items-center gap-1 ${
+                  !drawMode ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                }`}
+              >
+                <MousePointer2 className="w-3 h-3" /> View
+              </button>
+              <button
+                type="button"
+                onClick={() => onDrawModeChange(true)}
+                className={`px-2.5 py-1.5 text-xs flex items-center gap-1 ${
+                  drawMode ? 'bg-emerald-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                }`}
+              >
+                <Square className="w-3 h-3" /> Draw Box
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="relative flex-1 min-h-[320px] bg-slate-900/60">
@@ -163,7 +261,7 @@ export default function DocumentPreview({
           </div>
         ) : (
           <>
-            <div className="absolute inset-0 overflow-auto">
+            <div className={`absolute inset-0 overflow-auto ${drawMode ? 'pointer-events-none' : ''}`}>
               {isPdf ? (
                 <iframe
                   src={`${fileUrl}#view=FitH`}
@@ -171,17 +269,9 @@ export default function DocumentPreview({
                   className="w-full h-full min-h-[320px] border-0 bg-white"
                 />
               ) : isImage ? (
-                <img
-                  src={fileUrl}
-                  alt={fileName}
-                  className="w-full h-full object-contain"
-                />
+                <img src={fileUrl} alt={fileName} className="w-full h-full object-contain" />
               ) : (
-                <iframe
-                  src={fileUrl}
-                  title="Drawing preview"
-                  className="w-full h-full min-h-[320px] border-0"
-                />
+                <iframe src={fileUrl} title="Drawing preview" className="w-full h-full min-h-[320px] border-0" />
               )}
             </div>
 
@@ -189,8 +279,10 @@ export default function DocumentPreview({
               annotations={annotations}
               selectedId={selectedId}
               onSelect={onSelect}
-              showArrows={showArrows}
+              showArrows={showArrows && !drawMode}
             />
+
+            <DrawingOverlay active={drawMode} onBoxComplete={onBoxDrawn} />
           </>
         )}
       </div>

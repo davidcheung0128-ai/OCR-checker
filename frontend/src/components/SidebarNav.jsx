@@ -1,10 +1,11 @@
 import React from 'react';
-import { Upload, Layers, CheckCircle } from 'lucide-react';
+import { Upload, Layers, CheckCircle, FileSpreadsheet } from 'lucide-react';
 
 const STEPS = [
   { id: 1, label: '上傳圖紙', sublabel: 'Upload PDF', icon: Upload },
   { id: 2, label: '系統設定', sublabel: 'Settings', icon: Layers },
-  { id: 3, label: '組件明細', sublabel: 'Duct Sections', icon: CheckCircle },
+  { id: 3, label: '組件明細', sublabel: 'Label & Review', icon: CheckCircle },
+  { id: 4, label: '標準 Excel', sublabel: 'Export Report', icon: FileSpreadsheet },
 ];
 
 export default function SidebarNav({ activeStep, onStepChange }) {

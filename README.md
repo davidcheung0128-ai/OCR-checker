@@ -358,29 +358,32 @@ In **"2. 系統與比例尺設定"**:
 
 Adjust these to match your project's design conditions before exporting.
 
-### Step 3 — Review and edit duct sections
+### Step 3 — Review, manually label, and correct components
 
-In **"3. 風管管路組件與壓降試算明細"**, the table shows detected duct components:
+The AI bounding boxes may not align correctly. Use manual labeling to fix them:
 
-| Column | Description |
+1. Select a row in the **Duct Section Details** table
+2. Click **Re-box Selected** (or toggle **Draw Box** for a new component)
+3. Drag a rectangle on the drawing preview around the correct component
+4. Fill in the label dialog (name, type, dimensions, ASHRAE code)
+5. Click **Save & Train** — this stores the correction in the database for future recognition
+
+| Indicator | Meaning |
 |---|---|
-| **#** | Section ID |
-| **類型** | Suction or Discharge |
-| **配件/管段名稱** | Fitting or duct run name (editable) |
-| **寬 a(mm)** | Duct width in mm (editable) |
-| **高 b(mm)** | Duct height in mm (editable) |
-| **長度 L(m)** | Duct length in metres (editable) |
-| **ASHRAE 代碼** | Fitting code (e.g. `CR9-4`, `SR4-1`) |
+| **Green box** | Manually verified label |
+| **★** | Matched automatically from saved training data |
+| **✓** | Manually labeled this session |
 
-Click any editable cell to correct AI-detected values before exporting.
+On the next upload, similar components (overlapping bounding boxes) will use your saved labels automatically.
 
 ### Step 4 — Export Excel report
 
-1. Click **"下載 Young's Standard Excel"** at the bottom right
-2. The app calculates Darcy/Colebrook friction losses and generates a Young's Engineering ESP calculation sheet
-3. The Excel file downloads to your browser's default download folder
+1. Open **Step 4 — 標準 Excel** in the left sidebar
+2. Review the section summary (Suction / Discharge counts, verified labels)
+3. Click **Download Young's Standard Excel**
+4. The backend calculates Darcy/Colebrook losses and downloads the ESP calculation sheet
 
-### Step 5 — Submit corrections (optional)
+### Step 5 — Submit corrections via API (optional)
 
 If the AI misidentifies a fitting, corrections can be submitted via the API for future model training:
 
@@ -502,7 +505,9 @@ Docker Desktop handles architecture translation automatically. If a specific ima
 |---|---|---|
 | `GET` | `/` | Health check |
 | `POST` | `/api/upload` | Upload PDF for MinerU analysis |
-| `POST` | `/api/feedback` | Submit manual correction feedback |
+| `GET` | `/api/training/labels` | List saved manual labels for training |
+| `POST` | `/api/feedback` | Save manual label correction (JSON body) |
+| `POST` | `/api/export/excel` | Generate and download Young's Standard Excel |
 
 Interactive docs: http://localhost:8000/docs
 
