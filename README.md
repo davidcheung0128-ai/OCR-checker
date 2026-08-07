@@ -62,6 +62,13 @@ git pull origin main
 docker compose up --build
 ```
 
+If containers were already running, restart them after pulling:
+
+```bash
+docker compose down
+docker compose up --build
+```
+
 First run downloads images and installs dependencies — this may take a few minutes.
 
 ### 3. Open the app
@@ -84,6 +91,170 @@ To also remove the database volume:
 
 ```bash
 docker compose down -v
+```
+
+---
+
+## Restarting the App
+
+Use these commands whenever you pull new code, change config, or something stops working.
+
+### Docker — quick restart (keep data)
+
+Stop and start again without rebuilding:
+
+```bash
+cd OCR-checker
+docker compose down
+docker compose up
+```
+
+### Docker — full restart (after `git pull` or code changes)
+
+Rebuild images and restart all services:
+
+```bash
+cd OCR-checker
+git pull origin main
+docker compose down
+docker compose up --build
+```
+
+Run in the background (detached):
+
+```bash
+docker compose up --build -d
+```
+
+View logs while running in the background:
+
+```bash
+docker compose logs -f
+```
+
+Restart **one service only** (e.g. frontend after UI changes):
+
+```bash
+docker compose up -d --build frontend
+docker compose restart backend
+```
+
+### Local dev — restart backend
+
+In the backend terminal, press `Ctrl+C`, then:
+
+```bash
+cd backend
+source .venv/bin/activate        # macOS / Linux
+# .venv\Scripts\activate         # Windows
+uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+```
+
+### Local dev — restart frontend
+
+In the frontend terminal, press `Ctrl+C`, then:
+
+```bash
+cd frontend
+npm run dev
+```
+
+If the UI still looks stale after a restart, hard-refresh the browser:
+
+- **macOS:** `Cmd + Shift + R`
+- **Windows / Linux:** `Ctrl + Shift + R`
+
+---
+
+## Git Workflow — Pull, Commit, and Push
+
+Basic workflow for saving your changes and sharing them on GitHub.
+
+### 1. Check what changed
+
+```bash
+cd OCR-checker
+git status
+```
+
+### 2. Pull latest code first (avoid conflicts)
+
+```bash
+git pull origin main
+```
+
+### 3. Stage your changes
+
+Stage specific files:
+
+```bash
+git add README.md
+git add frontend/src/components/App.jsx
+```
+
+Or stage everything that changed:
+
+```bash
+git add .
+```
+
+### 4. Commit with a message
+
+```bash
+git commit -m "Describe what you changed in one clear sentence"
+```
+
+Example:
+
+```bash
+git commit -m "Update duct table labels and fix preview layout"
+```
+
+### 5. Push to GitHub
+
+```bash
+git push origin main
+```
+
+If this is your **first push on a new branch**:
+
+```bash
+git checkout -b my-feature-branch
+git push -u origin my-feature-branch
+```
+
+### 6. Restart the app after pushing (Docker)
+
+```bash
+docker compose down
+docker compose up --build
+```
+
+### Common git commands
+
+| Task | Command |
+|---|---|
+| See recent commits | `git log --oneline -5` |
+| Discard unstaged edits to a file | `git restore path/to/file` |
+| See line-by-line changes | `git diff` |
+| Create a new branch | `git checkout -b branch-name` |
+| Switch back to main | `git checkout main` |
+
+### If push is rejected
+
+Someone else pushed first. Pull, then push again:
+
+```bash
+git pull origin main
+git push origin main
+```
+
+If git reports merge conflicts, open the listed files, fix the conflict markers (`<<<<<<<`, `=======`, `>>>>>>>`), then:
+
+```bash
+git add .
+git commit -m "Resolve merge conflicts"
+git push origin main
 ```
 
 ---
